@@ -1,0 +1,2 @@
+bank_record_id,transaction_reference,amount,currency,transaction_date,bank_status
+BANK-000701,TXN-0701,1200.00,INR,2026-08-27,CLEARED

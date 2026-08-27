@@ -1,0 +1,3 @@
+bank_record_id,transaction_reference,amount,currency,transaction_date,bank_status
+BANK-000501,TXN-0501,900.00,INR,2026-08-25,CLEARED
+BANK-000502,TXN-0501,900.00,INR,2026-08-25,CLEARED

@@ -1,0 +1,32 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+
+# Angular / Node
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Environment / secrets
+*.env
+*.env.*
+!.env.example
+appsettings.*.local.json
+secrets.json
+
+# Generated / reproducible output
+test-data/generated/
+
+# Local certificates
+*.pfx
+*.p12
+
+# OS
+.DS_Store
+Thumbs.db

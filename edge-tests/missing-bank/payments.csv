@@ -1,0 +1,2 @@
+payment_record_id,transaction_reference,amount,currency,transaction_date,payment_status
+PAY-000201,TXN-0201,500.00,INR,2026-08-25,COMPLETED

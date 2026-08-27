@@ -1,0 +1,2 @@
+settlement_record_id,transaction_reference,amount,currency,transaction_date,settlement_status
+SET-000801,TXN-0801,1500.00,INR,2026-08-26,SETTLED

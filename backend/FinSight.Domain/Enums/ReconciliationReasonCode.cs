@@ -1,0 +1,26 @@
+﻿namespace FinSight.Domain.Enums;
+
+public enum ReconciliationReasonCode
+{
+    EXACT_MATCH,
+
+    TOLERANCE_MATCH,
+
+    AMOUNT_MISMATCH,
+
+    DATE_OUT_OF_TOLERANCE,
+
+    SOURCE_ABSENT_BANK,
+
+    SOURCE_ABSENT_SETTLEMENT,
+
+    SOURCE_ABSENT_PAYMENT,
+
+    DUPLICATE_PAYMENT,
+
+    DUPLICATE_BANK,
+
+    DUPLICATE_SETTLEMENT,
+
+    UNRESOLVED
+}
