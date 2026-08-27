@@ -1,6 +1,7 @@
 using FinSight.Application.Abstractions.Persistence;
 using FinSight.Application.Abstractions.Services;
 using FinSight.Application.DTOs.Ingestion;
+using FinSight.Application.DTOs.Reconciliation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -113,6 +114,77 @@ public class BatchesController : ControllerBase
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Bad Request");
         }
+    }
+
+    [HttpGet]
+    [ProducesResponseType(
+        typeof(PagedResponse<BatchResponse>),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PagedResponse<BatchResponse>>> GetBatches(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        const int maxPageSize = 100;
+
+        if (pageNumber < 1)
+        {
+            return Problem(
+                detail: "pageNumber must be greater than or equal to 1.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request");
+        }
+
+        if (pageSize < 1 || pageSize > maxPageSize)
+        {
+            return Problem(
+                detail: $"pageSize must be between 1 and {maxPageSize}.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request");
+        }
+
+        var page =
+            await _batchRepository.GetPageAsync(
+                pageNumber,
+                pageSize,
+                cancellationToken);
+
+        var items =
+            page.Items
+                .Select(
+                    batch => new BatchResponse
+                    {
+                        BatchId = batch.Id,
+                        BatchLabel = batch.BatchLabel,
+                        PaymentRecordCount = batch.PaymentRecordCount,
+                        BankRecordCount = batch.BankRecordCount,
+                        SettlementRecordCount = batch.SettlementRecordCount,
+                        TotalRecordCount = batch.TotalRecordCount,
+                        ValidationStatus = batch.ValidationStatus,
+                        CreatedBy = batch.CreatedBy,
+                        CreatedAt = batch.CreatedAt
+                    })
+                .ToList();
+
+        var totalPages =
+            page.TotalCount == 0
+                ? 0
+                : (int)Math.Ceiling(
+                    page.TotalCount /
+                    (double)pageSize);
+
+        var response =
+            new PagedResponse<BatchResponse>
+            {
+                Items = items,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                TotalCount = page.TotalCount,
+                TotalPages = totalPages
+            };
+
+        return Ok(response);
     }
 
     [HttpGet("{batchId:guid}")]

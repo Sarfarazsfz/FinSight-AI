@@ -233,6 +233,15 @@ public sealed class GlobalExceptionHandlerTests
             throw new InvalidOperationException(
                 "Sensitive test exception");
         }
+
+        public Task<(IReadOnlyList<Batch> Items, int TotalCount)>
+            GetPageAsync(
+                int pageNumber,
+                int pageSize,
+                CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
     }
 
     private sealed class ThrowingAiProviderRepository
@@ -251,6 +260,15 @@ public sealed class GlobalExceptionHandlerTests
         {
             throw new AiProviderUnavailableException(
                 "Sensitive AI provider details: quota/API key failure.");
+        }
+
+        public Task<(IReadOnlyList<Batch> Items, int TotalCount)>
+            GetPageAsync(
+                int pageNumber,
+                int pageSize,
+                CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
         }
     }
 }

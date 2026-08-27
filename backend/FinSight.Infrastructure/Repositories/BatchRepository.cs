@@ -24,6 +24,30 @@ public class BatchRepository : IBatchRepository
                 cancellationToken);
     }
 
+    public async Task<(IReadOnlyList<Batch> Items, int TotalCount)>
+        GetPageAsync(
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+    {
+        var query =
+            _dbContext.Batches
+                .AsNoTracking()
+                .OrderByDescending(x => x.CreatedAt)
+                .ThenByDescending(x => x.Id);
+
+        var totalCount =
+            await query.CountAsync(cancellationToken);
+
+        var items =
+            await query
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
     public async Task AddAsync(
         Batch batch,
         CancellationToken cancellationToken = default)
