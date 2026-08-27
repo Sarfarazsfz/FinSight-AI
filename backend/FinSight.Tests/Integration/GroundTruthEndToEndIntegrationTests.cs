@@ -2,6 +2,7 @@ using FinSight.Application.Abstractions.Persistence;
 using FinSight.Application.Abstractions.Services;
 using FinSight.Application.DTOs.Ingestion;
 using FinSight.Application.DTOs.Reconciliation;
+using FinSight.Application.Evaluation;
 using FinSight.DataGenerator.Generation;
 using FinSight.DataGenerator.Models;
 using FinSight.DataGenerator.Validation;
@@ -202,7 +203,7 @@ public sealed class GroundTruthEndToEndIntegrationTests
             var actualResults =
                 persistedResults
                     .Select(
-                        x => new GroundTruthComparator.ActualResult
+                        x => new ActualResult
                         {
                             ResultId = x.Id,
                             RunId = x.RunId,
@@ -228,7 +229,7 @@ public sealed class GroundTruthEndToEndIntegrationTests
             var actualExceptions =
                 persistedExceptions
                     .Select(
-                        x => new GroundTruthComparator.ActualException
+                        x => new ActualException
                         {
                             ExceptionId = x.Id,
                             RunId = x.RunId,
@@ -243,7 +244,7 @@ public sealed class GroundTruthEndToEndIntegrationTests
                     .ToList();
 
             var comparison =
-                new GroundTruthComparator().Compare(
+                GroundTruthComparer.Compare(
                     groundTruthRows,
                     actualResults,
                     actualExceptions);

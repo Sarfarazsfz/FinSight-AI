@@ -1,4 +1,4 @@
-﻿namespace FinSight.DataGenerator.Models;
+namespace FinSight.Application.Evaluation;
 
 public sealed record GroundTruthRow(
     string TransactionReference,

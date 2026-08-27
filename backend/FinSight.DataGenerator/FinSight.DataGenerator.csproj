@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\FinSight.Domain\FinSight.Domain.csproj" />
+    <ProjectReference Include="..\FinSight.Application\FinSight.Application.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

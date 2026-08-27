@@ -1,5 +1,6 @@
 ﻿using System.Globalization;
 using System.Text;
+using FinSight.Application.Evaluation;
 using FinSight.DataGenerator.Models;
 
 namespace FinSight.DataGenerator.Generation;

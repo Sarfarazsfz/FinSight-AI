@@ -1,4 +1,5 @@
 using FinSight.Api.Controllers;
+using FinSight.Application.Abstractions.Evaluation;
 using FinSight.Application.Abstractions.Persistence;
 using FinSight.Application.Abstractions.Reconciliation;
 using FinSight.Application.Abstractions.Services;
@@ -141,7 +142,9 @@ public sealed class ReconciliationSummaryConsistencyTests
                     .GetRequiredService<ISettlementRecordRepository>(),
                 new FakeAiExplanationService(),
                 scope.ServiceProvider
-                    .GetRequiredService<IReconciliationSummaryBuilder>());
+                    .GetRequiredService<IReconciliationSummaryBuilder>(),
+                scope.ServiceProvider
+                    .GetRequiredService<IGroundTruthComparisonService>());
 
         var controllerActionResult =
             await controller.GetSummary(
@@ -230,7 +233,9 @@ public sealed class ReconciliationSummaryConsistencyTests
                     .GetRequiredService<ISettlementRecordRepository>(),
                 new FakeAiExplanationService(),
                 scope.ServiceProvider
-                    .GetRequiredService<IReconciliationSummaryBuilder>());
+                    .GetRequiredService<IReconciliationSummaryBuilder>(),
+                scope.ServiceProvider
+                    .GetRequiredService<IGroundTruthComparisonService>());
 
         var result =
             await controller.GetSummary(

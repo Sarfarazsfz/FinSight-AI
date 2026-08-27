@@ -1,8 +1,10 @@
+using FinSight.Application.Abstractions.Evaluation;
 using FinSight.Application.Abstractions.Persistence;
 using FinSight.Application.Abstractions.Reconciliation;
 using FinSight.Application.Abstractions.Services;
 using FinSight.Application.DTOs.Ai;
 using FinSight.Application.DTOs.Reconciliation;
+using FinSight.Application.Evaluation;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -43,6 +45,9 @@ public class ReconciliationController : ControllerBase
     private readonly IReconciliationSummaryBuilder
         _summaryBuilder;
 
+    private readonly IGroundTruthComparisonService
+        _groundTruthComparisonService;
+
     public ReconciliationController(
         IReconciliationService reconciliationService,
         IReconciliationRunRepository runRepository,
@@ -53,7 +58,8 @@ public class ReconciliationController : ControllerBase
         IBankRecordRepository bankRecordRepository,
         ISettlementRecordRepository settlementRecordRepository,
         IAiExplanationService aiExplanationService,
-        IReconciliationSummaryBuilder summaryBuilder)
+        IReconciliationSummaryBuilder summaryBuilder,
+        IGroundTruthComparisonService groundTruthComparisonService)
     {
         _reconciliationService =
             reconciliationService;
@@ -84,6 +90,9 @@ public class ReconciliationController : ControllerBase
 
         _summaryBuilder =
             summaryBuilder;
+
+        _groundTruthComparisonService =
+            groundTruthComparisonService;
     }
 
     [HttpPost("runs")]
@@ -191,6 +200,49 @@ public class ReconciliationController : ControllerBase
         }
 
         return Ok(response);
+    }
+
+    [HttpPost("runs/{runId:guid}/ground-truth-verification")]
+    [ProducesResponseType(
+        typeof(GroundTruthComparisonResult),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<GroundTruthComparisonResult>>
+        VerifyGroundTruth(
+            Guid runId,
+            [FromBody] GroundTruthRow[]? groundTruthRows,
+            CancellationToken cancellationToken)
+    {
+        if (groundTruthRows is null ||
+            groundTruthRows.Length == 0)
+        {
+            return Problem(
+                detail: "A non-empty ground-truth row array is required.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request");
+        }
+
+        var run =
+            await _runRepository.GetByIdAsync(
+                runId,
+                cancellationToken);
+
+        if (run is null)
+        {
+            return Problem(
+                detail: $"Reconciliation run '{runId}' was not found.",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Resource Not Found");
+        }
+
+        var comparison =
+            await _groundTruthComparisonService.CompareAsync(
+                runId,
+                groundTruthRows,
+                cancellationToken);
+
+        return Ok(comparison);
     }
 
     [HttpGet("runs/{runId:guid}/results")]

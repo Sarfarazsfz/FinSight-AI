@@ -1,7 +1,9 @@
+using FinSight.Application.Abstractions.Evaluation;
 using FinSight.Application.Abstractions.Persistence;
 using FinSight.Application.Abstractions.Reconciliation;
 using FinSight.Application.Abstractions.Services;
 using FinSight.Application.AI;
+using FinSight.Application.Evaluation;
 using FinSight.Application.Reconciliation;
 using Google.GenAI;
 using FinSight.Infrastructure.AI;
@@ -80,6 +82,14 @@ public static class DependencyInjection
         services.AddScoped<
             IReconciliationSummaryBuilder,
             ReconciliationSummaryBuilder>();
+
+        // Live ground-truth verification: compares caller-supplied
+        // ground truth against a run's already-persisted results/
+        // exceptions using the shared GroundTruthComparer (also used by
+        // the offline FinSight.DataGenerator console verifier).
+        services.AddScoped<
+            IGroundTruthComparisonService,
+            GroundTruthComparisonService>();
 
         // -----------------------------------------------------------------
         // AI configuration

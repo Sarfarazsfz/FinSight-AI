@@ -1,4 +1,4 @@
-using FinSight.DataGenerator.Models;
+using FinSight.Application.Evaluation;
 using FinSight.DataGenerator.Validation;
 
 namespace FinSight.Tests.Evaluation;
@@ -39,9 +39,9 @@ public sealed class GroundTruthComparatorTests
         };
     }
 
-    private static List<GroundTruthComparator.ActualResult> BuildMatchingActualResults()
+    private static List<ActualResult> BuildMatchingActualResults()
     {
-        return new List<GroundTruthComparator.ActualResult>
+        return new List<ActualResult>
         {
             new()
             {
@@ -67,9 +67,9 @@ public sealed class GroundTruthComparatorTests
         };
     }
 
-    private static List<GroundTruthComparator.ActualException> BuildMatchingActualExceptions()
+    private static List<ActualException> BuildMatchingActualExceptions()
     {
-        return new List<GroundTruthComparator.ActualException>
+        return new List<ActualException>
         {
             new()
             {
@@ -89,7 +89,7 @@ public sealed class GroundTruthComparatorTests
     [Test]
     public void Compare_AllMatching_ReturnsSuccessWithNoFailures()
     {
-        var result = new GroundTruthComparator().Compare(
+        var result = GroundTruthComparer.Compare(
             BuildExpectedRows(),
             BuildMatchingActualResults(),
             BuildMatchingActualExceptions());
@@ -110,7 +110,7 @@ public sealed class GroundTruthComparatorTests
         var actualResults = BuildMatchingActualResults();
 
         // Corrupt TXN-2: report it as Matched instead of Mismatched.
-        actualResults[1] = new GroundTruthComparator.ActualResult
+        actualResults[1] = new ActualResult
         {
             ResultId = actualResults[1].ResultId,
             TransactionReference = "TXN-2",
@@ -118,7 +118,7 @@ public sealed class GroundTruthComparatorTests
             ReasonCode = "AMOUNT_MISMATCH"
         };
 
-        var result = new GroundTruthComparator().Compare(
+        var result = GroundTruthComparer.Compare(
             BuildExpectedRows(),
             actualResults,
             BuildMatchingActualExceptions());
@@ -146,7 +146,7 @@ public sealed class GroundTruthComparatorTests
     {
         var actualResults = BuildMatchingActualResults();
 
-        actualResults[1] = new GroundTruthComparator.ActualResult
+        actualResults[1] = new ActualResult
         {
             ResultId = actualResults[1].ResultId,
             TransactionReference = "TXN-2",
@@ -154,7 +154,7 @@ public sealed class GroundTruthComparatorTests
             ReasonCode = "DATE_OUT_OF_TOLERANCE"
         };
 
-        var result = new GroundTruthComparator().Compare(
+        var result = GroundTruthComparer.Compare(
             BuildExpectedRows(),
             actualResults,
             BuildMatchingActualExceptions());
@@ -178,7 +178,7 @@ public sealed class GroundTruthComparatorTests
                 .Where(x => x.TransactionReference != "TXN-3")
                 .ToList();
 
-        var result = new GroundTruthComparator().Compare(
+        var result = GroundTruthComparer.Compare(
             BuildExpectedRows(),
             actualResults,
             BuildMatchingActualExceptions());
@@ -197,7 +197,7 @@ public sealed class GroundTruthComparatorTests
         var actualResults = BuildMatchingActualResults();
 
         actualResults.Add(
-            new GroundTruthComparator.ActualResult
+            new ActualResult
             {
                 ResultId = Guid.NewGuid(),
                 TransactionReference = "TXN-4",
@@ -205,7 +205,7 @@ public sealed class GroundTruthComparatorTests
                 ReasonCode = "EXACT_MATCH"
             });
 
-        var result = new GroundTruthComparator().Compare(
+        var result = GroundTruthComparer.Compare(
             BuildExpectedRows(),
             actualResults,
             BuildMatchingActualExceptions());
@@ -226,7 +226,7 @@ public sealed class GroundTruthComparatorTests
                 .Where(x => x.TransactionReference != "TXN-2")
                 .ToList();
 
-        var result = new GroundTruthComparator().Compare(
+        var result = GroundTruthComparer.Compare(
             BuildExpectedRows(),
             BuildMatchingActualResults(),
             actualExceptions);
@@ -249,14 +249,14 @@ public sealed class GroundTruthComparatorTests
         var actualExceptions = BuildMatchingActualExceptions();
 
         actualExceptions.Add(
-            new GroundTruthComparator.ActualException
+            new ActualException
             {
                 ExceptionId = Guid.NewGuid(),
                 TransactionReference = "TXN-1",
                 Category = "Unresolved"
             });
 
-        var result = new GroundTruthComparator().Compare(
+        var result = GroundTruthComparer.Compare(
             BuildExpectedRows(),
             BuildMatchingActualResults(),
             actualExceptions);
@@ -277,14 +277,14 @@ public sealed class GroundTruthComparatorTests
     {
         var actualExceptions = BuildMatchingActualExceptions();
 
-        actualExceptions[0] = new GroundTruthComparator.ActualException
+        actualExceptions[0] = new ActualException
         {
             ExceptionId = actualExceptions[0].ExceptionId,
             TransactionReference = "TXN-2",
             Category = "DateMismatch"
         };
 
-        var result = new GroundTruthComparator().Compare(
+        var result = GroundTruthComparer.Compare(
             BuildExpectedRows(),
             BuildMatchingActualResults(),
             actualExceptions);
@@ -303,7 +303,7 @@ public sealed class GroundTruthComparatorTests
 
         var actualResults = BuildMatchingActualResults();
 
-        actualResults[0] = new GroundTruthComparator.ActualResult
+        actualResults[0] = new ActualResult
         {
             ResultId = actualResults[0].ResultId,
             TransactionReference = "TXN-1",
@@ -312,7 +312,7 @@ public sealed class GroundTruthComparatorTests
         };
 
         actualResults.Add(
-            new GroundTruthComparator.ActualResult
+            new ActualResult
             {
                 ResultId = Guid.NewGuid(),
                 TransactionReference = "TXN-99",
@@ -322,14 +322,12 @@ public sealed class GroundTruthComparatorTests
 
         var actualExceptions = BuildMatchingActualExceptions();
 
-        var comparator = new GroundTruthComparator();
-
-        var first = comparator.Compare(
+        var first = GroundTruthComparer.Compare(
             expectedRows,
             actualResults,
             actualExceptions);
 
-        var second = comparator.Compare(
+        var second = GroundTruthComparer.Compare(
             expectedRows,
             actualResults,
             actualExceptions);

@@ -1,3 +1,4 @@
+using FinSight.Application.Evaluation;
 using FinSight.DataGenerator.Generation;
 using FinSight.DataGenerator.Models;
 
