@@ -83,8 +83,12 @@ public sealed class BatchIngestionService : IBatchIngestionService
                     $"{error.Source} row {error.RowNumber}: " +
                     $"{error.Field} - {error.Message}"));
 
-            throw new InvalidDataException(
+            var validationException = new InvalidDataException(
                 $"Batch validation failed:{Environment.NewLine}{message}");
+
+            validationException.Data["Errors"] = validationErrors;
+
+            throw validationException;
         }
 
         var batch = new Batch(

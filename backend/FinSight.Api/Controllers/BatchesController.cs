@@ -109,6 +109,22 @@ public class BatchesController : ControllerBase
         }
         catch (InvalidDataException ex)
         {
+            if (ex.Data["Errors"] is IReadOnlyList<IngestionValidationError> errors)
+            {
+                var problemDetails = ProblemDetailsFactory.CreateProblemDetails(
+                    HttpContext,
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "Bad Request",
+                    detail: ex.Message);
+
+                problemDetails.Extensions["errors"] = errors;
+
+                return new ObjectResult(problemDetails)
+                {
+                    StatusCode = StatusCodes.Status400BadRequest
+                };
+            }
+
             return Problem(
                 detail: ex.Message,
                 statusCode: StatusCodes.Status400BadRequest,
