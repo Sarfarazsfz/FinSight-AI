@@ -67,6 +67,22 @@ export const routes: Routes = [
           ),
         title: 'Run — FinSight',
       },
+      {
+        path: 'runs/:runId/results',
+        loadComponent: () =>
+          import('./features/runs/results/results-page').then(
+            (m) => m.ResultsPage,
+          ),
+        title: 'Results — FinSight',
+      },
+      {
+        path: 'runs/:runId/results/:resultId',
+        loadComponent: () =>
+          import('./features/runs/results/result-detail-page').then(
+            (m) => m.ResultDetailPage,
+          ),
+        title: 'Evidence — FinSight',
+      },
     ],
   },
   {

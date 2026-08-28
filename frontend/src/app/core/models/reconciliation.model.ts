@@ -65,3 +65,99 @@ export interface ReconciliationRunDetailsResponse {
   completedAt: string | null;
   createdAt: string;
 }
+
+/**
+ * Mirrors FinSight.Domain.Enums.MatchStatus's *names* exactly -- this is a
+ * per-result classification, not a run-level state. "Pending" is NOT a
+ * member here; that value belongs only to ReconciliationRunStatus above.
+ */
+export type ReconciliationMatchStatus =
+  | 'Matched'
+  | 'Mismatched'
+  | 'Missing'
+  | 'Duplicate'
+  | 'Unresolved';
+
+/**
+ * Mirrors FinSight.Domain.Enums.ReconciliationReasonCode exactly. Rendered
+ * verbatim wherever it appears -- never humanized, never reworded.
+ */
+export type ReconciliationReasonCode =
+  | 'EXACT_MATCH'
+  | 'TOLERANCE_MATCH'
+  | 'AMOUNT_MISMATCH'
+  | 'DATE_OUT_OF_TOLERANCE'
+  | 'SOURCE_ABSENT_BANK'
+  | 'SOURCE_ABSENT_SETTLEMENT'
+  | 'SOURCE_ABSENT_PAYMENT'
+  | 'DUPLICATE_PAYMENT'
+  | 'DUPLICATE_BANK'
+  | 'DUPLICATE_SETTLEMENT'
+  | 'UNRESOLVED';
+
+/**
+ * The two real values `MatchClassifier` ever assigns to `StrategyUsed`, or
+ * null for every non-Matched outcome. Verified directly from
+ * FinSight.Infrastructure/Reconciliation/MatchClassifier.cs -- not guessed.
+ */
+export type ReconciliationStrategy =
+  | 'StrategyOne_ExactReferenceMatch'
+  | 'StrategyTwo_AmountDateToleranceMatch';
+
+/**
+ * Mirrors FinSight.Application.DTOs.Reconciliation.ReconciliationResultResponse --
+ * one item of GET /api/reconciliation/runs/{runId}/results.
+ */
+export interface ReconciliationResultResponse {
+  resultId: string;
+  runId: string;
+  normalizedTransactionId: string;
+  transactionReference: string;
+  status: ReconciliationMatchStatus;
+  strategyUsed: ReconciliationStrategy | null;
+  reasonCode: ReconciliationReasonCode;
+  createdAt: string;
+}
+
+/**
+ * Mirrors FinSight.Application.DTOs.Reconciliation.SourceTransactionRecordResponse.
+ *
+ * `status` here is the RAW CSV status column (payment_status/bank_status/
+ * settlement_status), uppercased by BatchIngestionService -- a completely
+ * different concept from ReconciliationMatchStatus above, and NOT a closed
+ * set: BatchIngestionValidator never validates these values against an
+ * enum, so this stays a plain `string`, never a union.
+ */
+export interface SourceTransactionRecordResponse {
+  id: string;
+  sourceRecordIdentifier: string;
+  transactionReference: string;
+  amount: number;
+  currency: string;
+  transactionDate: string;
+  status: string;
+  createdAt: string;
+}
+
+/**
+ * Mirrors FinSight.Application.DTOs.Reconciliation.ReconciliationTransactionDetailResponse --
+ * the body of GET /api/reconciliation/runs/{runId}/results/{resultId}.
+ *
+ * `payments`/`banks`/`settlements` are genuinely variable-length arrays, not
+ * a fixed one-per-source triple: an empty array is how a `Missing` result
+ * is actually represented, and two or more entries is how a `Duplicate`
+ * result is actually represented. Never coerce these to a single item or
+ * assume exactly one record per source.
+ */
+export interface ReconciliationTransactionDetailResponse {
+  resultId: string;
+  runId: string;
+  normalizedTransactionId: string;
+  transactionReference: string;
+  status: ReconciliationMatchStatus;
+  strategyUsed: ReconciliationStrategy | null;
+  reasonCode: ReconciliationReasonCode;
+  payments: SourceTransactionRecordResponse[];
+  banks: SourceTransactionRecordResponse[];
+  settlements: SourceTransactionRecordResponse[];
+}

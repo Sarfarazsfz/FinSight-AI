@@ -67,17 +67,27 @@
           </div>
         </dl>
 
-        @if (run()!.status === 'Running' || run()!.status === 'Pending') {
-          <button
-            type="button"
-            class="mt-6 h-9 px-3 rounded-md border border-border-strong text-small font-semibold
-                   hover:border-text-faint transition-colors"
-            data-testid="run-refresh"
-            (click)="retry()"
+        <div class="mt-6 flex flex-wrap items-center gap-3">
+          <a
+            [routerLink]="['/runs', run()!.runId, 'results']"
+            class="h-9 px-3 inline-flex items-center rounded-md bg-ink text-on-ink
+                   text-small font-semibold hover:bg-ink-strong transition-colors"
           >
-            Refresh
-          </button>
-        }
+            View results
+          </a>
+
+          @if (run()!.status === 'Running' || run()!.status === 'Pending') {
+            <button
+              type="button"
+              class="h-9 px-3 rounded-md border border-border-strong text-small font-semibold
+                     hover:border-text-faint transition-colors"
+              data-testid="run-refresh"
+              (click)="retry()"
+            >
+              Refresh
+            </button>
+          }
+        </div>
       }
       @case ('not-found') {
         <div

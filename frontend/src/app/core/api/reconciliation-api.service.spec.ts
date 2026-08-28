@@ -8,9 +8,12 @@ import { ReconciliationApi } from './reconciliation-api.service';
 import { environment } from '../../../environments/environment';
 import { isProblemDetails } from '../models/problem-details.model';
 import type {
+  ReconciliationResultResponse,
   ReconciliationRunDetailsResponse,
   ReconciliationRunResult,
+  ReconciliationTransactionDetailResponse,
 } from '../models/reconciliation.model';
+import type { PagedResponse } from '../models/paged-response.model';
 
 describe('ReconciliationApi', () => {
   let api: ReconciliationApi;
@@ -137,6 +140,192 @@ describe('ReconciliationApi', () => {
       );
     });
   });
+
+  const resultId = '33333333-3333-3333-3333-333333333333';
+
+  describe('getResults', () => {
+    const resultsUrl = `${runsUrl}/${runId}/results`;
+
+    it('GETs the configured results URL', () => {
+      api.getResults(runId, 1, 50).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url === resultsUrl && r.method === 'GET');
+      expect(req.request.method).toBe('GET');
+      req.flush(makeResultsPage([]));
+    });
+
+    it('sends pageNumber and pageSize as query parameters, nothing else', () => {
+      api.getResults(runId, 2, 50).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url === resultsUrl);
+      expect(req.request.params.get('pageNumber')).toBe('2');
+      expect(req.request.params.get('pageSize')).toBe('50');
+      expect(req.request.params.keys().sort()).toEqual(['pageNumber', 'pageSize']);
+
+      req.flush(makeResultsPage([]));
+    });
+
+    it('maps a real 200 verbatim, including nullable strategyUsed', () => {
+      const wire: PagedResponse<ReconciliationResultResponse> = makeResultsPage([
+        makeResultItem({ status: 'Matched', strategyUsed: 'StrategyOne_ExactReferenceMatch' }),
+        makeResultItem({ resultId: 'r2', status: 'Missing', strategyUsed: null, reasonCode: 'SOURCE_ABSENT_BANK' }),
+      ]);
+
+      let received: PagedResponse<ReconciliationResultResponse> | undefined;
+      api.getResults(runId, 1, 50).subscribe((r) => (received = r));
+
+      httpMock.expectOne((r) => r.url === resultsUrl).flush(wire);
+
+      expect(received).toEqual(wire);
+      expect(received!.items[1].strategyUsed).toBeNull();
+    });
+
+    it('maps a genuine zero-result page without alteration', () => {
+      const wire = makeResultsPage([]);
+
+      let received: PagedResponse<ReconciliationResultResponse> | undefined;
+      api.getResults(runId, 1, 50).subscribe((r) => (received = r));
+
+      httpMock.expectOne((r) => r.url === resultsUrl).flush(wire);
+
+      expect(received).toEqual(wire);
+    });
+
+    it('surfaces a 404 (run not found) unmodified', () => {
+      let body: unknown;
+
+      api.getResults(runId, 1, 50).subscribe({
+        next: () => fail('expected the 404 to error'),
+        error: (err) => (body = err.error),
+      });
+
+      httpMock.expectOne((r) => r.url === resultsUrl).flush(
+        { title: 'Resource Not Found', status: 404, detail: `Reconciliation run '${runId}' was not found.` },
+        { status: 404, statusText: 'Not Found' },
+      );
+
+      expect(isProblemDetails(body)).toBeTrue();
+    });
+
+    it('surfaces a 400 unmodified', () => {
+      let body: unknown;
+
+      api.getResults(runId, 0, 50).subscribe({
+        next: () => fail('expected the 400 to error'),
+        error: (err) => (body = err.error),
+      });
+
+      httpMock.expectOne((r) => r.url === resultsUrl).flush(
+        { title: 'Bad Request', status: 400, detail: 'pageNumber must be greater than or equal to 1.' },
+        { status: 400, statusText: 'Bad Request' },
+      );
+
+      expect(isProblemDetails(body)).toBeTrue();
+    });
+  });
+
+  describe('getResultDetail', () => {
+    const detailUrl = `${runsUrl}/${runId}/results/${resultId}`;
+
+    it('GETs the configured result-detail URL', () => {
+      api.getResultDetail(runId, resultId).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url === detailUrl && r.method === 'GET');
+      expect(req.request.method).toBe('GET');
+      req.flush(makeDetailResponse());
+    });
+
+    it('maps a real 200 verbatim, preserving array lengths exactly (0, 1, and many)', () => {
+      const wire: ReconciliationTransactionDetailResponse = makeDetailResponse({
+        payments: [],
+        banks: [makeSourceRecord('BANK-000001')],
+        settlements: [makeSourceRecord('SET-000001'), makeSourceRecord('SET-000002')],
+      });
+
+      let received: ReconciliationTransactionDetailResponse | undefined;
+      api.getResultDetail(runId, resultId).subscribe((r) => (received = r));
+
+      httpMock.expectOne((r) => r.url === detailUrl).flush(wire);
+
+      expect(received).toEqual(wire);
+      expect(received!.payments.length).toBe(0);
+      expect(received!.banks.length).toBe(1);
+      expect(received!.settlements.length).toBe(2);
+    });
+
+    it('surfaces a 404 (result not found) unmodified', () => {
+      let body: unknown;
+
+      api.getResultDetail(runId, resultId).subscribe({
+        next: () => fail('expected the 404 to error'),
+        error: (err) => (body = err.error),
+      });
+
+      httpMock.expectOne((r) => r.url === detailUrl).flush(
+        {
+          title: 'Resource Not Found',
+          status: 404,
+          detail: `Reconciliation result '${resultId}' was not found for run '${runId}'.`,
+        },
+        { status: 404, statusText: 'Not Found' },
+      );
+
+      expect(isProblemDetails(body)).toBeTrue();
+    });
+  });
+
+  function makeResultItem(
+    overrides: Partial<ReconciliationResultResponse> = {},
+  ): ReconciliationResultResponse {
+    return {
+      resultId: 'r1',
+      runId,
+      normalizedTransactionId: 'nt1',
+      transactionReference: 'TXN-0001',
+      status: 'Matched',
+      strategyUsed: 'StrategyOne_ExactReferenceMatch',
+      reasonCode: 'EXACT_MATCH',
+      createdAt: '2026-08-29T09:00:00Z',
+      ...overrides,
+    };
+  }
+
+  function makeResultsPage(
+    items: ReconciliationResultResponse[],
+  ): PagedResponse<ReconciliationResultResponse> {
+    return { items, pageNumber: 1, pageSize: 50, totalCount: items.length, totalPages: items.length === 0 ? 0 : 1 };
+  }
+
+  function makeSourceRecord(sourceRecordIdentifier: string) {
+    return {
+      id: sourceRecordIdentifier,
+      sourceRecordIdentifier,
+      transactionReference: 'TXN-0001',
+      amount: 100.5,
+      currency: 'INR',
+      transactionDate: '2026-08-20',
+      status: 'SUCCESS',
+      createdAt: '2026-08-29T09:00:00Z',
+    };
+  }
+
+  function makeDetailResponse(
+    overrides: Partial<ReconciliationTransactionDetailResponse> = {},
+  ): ReconciliationTransactionDetailResponse {
+    return {
+      resultId,
+      runId,
+      normalizedTransactionId: 'nt1',
+      transactionReference: 'TXN-0001',
+      status: 'Matched',
+      strategyUsed: 'StrategyOne_ExactReferenceMatch',
+      reasonCode: 'EXACT_MATCH',
+      payments: [makeSourceRecord('PAY-000001')],
+      banks: [makeSourceRecord('BANK-000001')],
+      settlements: [makeSourceRecord('SET-000001')],
+      ...overrides,
+    };
+  }
 
   function makeResult(overrides: Partial<ReconciliationRunResult> = {}): ReconciliationRunResult {
     return {

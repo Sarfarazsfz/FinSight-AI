@@ -3,19 +3,23 @@ import { Injectable, inject } from '@angular/core';
 import type { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type {
+  ReconciliationResultResponse,
   ReconciliationRunDetailsResponse,
   ReconciliationRunRequest,
   ReconciliationRunResult,
+  ReconciliationTransactionDetailResponse,
 } from '../models/reconciliation.model';
+import type { PagedResponse } from '../models/paged-response.model';
 
 /**
- * Thin typed wrapper over the two reconciliation endpoints F6 consumes:
- * creating a run and reading one back.
+ * Thin typed wrapper over the reconciliation endpoints this frontend
+ * actually consumes: creating a run, reading one back, listing its results,
+ * and reading one result's source evidence.
  *
- * `summary`, `results`, `exceptions`, transaction detail, AI explanation and
- * ground-truth verification are all real backend capabilities with no
- * frontend consumer yet -- no method for them exists here. Add each only
- * when the phase that actually builds its screen is being implemented.
+ * `summary`, `exceptions`, AI explanation and ground-truth verification are
+ * all real backend capabilities with no frontend consumer yet -- no method
+ * for them exists here. Add each only when the phase that actually builds
+ * its screen is being implemented.
  */
 @Injectable({ providedIn: 'root' })
 export class ReconciliationApi {
@@ -35,5 +39,26 @@ export class ReconciliationApi {
 
   getRun(runId: string): Observable<ReconciliationRunDetailsResponse> {
     return this.http.get<ReconciliationRunDetailsResponse>(`${this.baseUrl}/runs/${runId}`);
+  }
+
+  getResults(
+    runId: string,
+    pageNumber: number,
+    pageSize: number,
+  ): Observable<PagedResponse<ReconciliationResultResponse>> {
+    return this.http.get<PagedResponse<ReconciliationResultResponse>>(
+      `${this.baseUrl}/runs/${runId}/results`,
+      { params: { pageNumber, pageSize } },
+    );
+  }
+
+  /** Maps to the backend's GetTransactionDetail action. */
+  getResultDetail(
+    runId: string,
+    resultId: string,
+  ): Observable<ReconciliationTransactionDetailResponse> {
+    return this.http.get<ReconciliationTransactionDetailResponse>(
+      `${this.baseUrl}/runs/${runId}/results/${resultId}`,
+    );
   }
 }
