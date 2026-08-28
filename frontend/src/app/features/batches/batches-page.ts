@@ -10,8 +10,9 @@ import {
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import type { HttpErrorResponse } from '@angular/common/http';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { BatchApi } from '../../core/api/batch-api.service';
+import { ReconciliationApi } from '../../core/api/reconciliation-api.service';
 import { isProblemDetails } from '../../core/models/problem-details.model';
 import type {
   BatchResponse,
@@ -45,6 +46,8 @@ type BatchesPageState = 'loading' | 'loaded' | 'empty' | 'error';
 })
 export class BatchesPage implements OnInit {
   private readonly batchApi = inject(BatchApi);
+  private readonly reconciliationApi = inject(ReconciliationApi);
+  private readonly router = inject(Router);
 
   protected readonly state = signal<BatchesPageState>('loading');
   protected readonly items = signal<BatchResponse[]>([]);
@@ -52,6 +55,12 @@ export class BatchesPage implements OnInit {
   protected readonly totalPages = signal(0);
   protected readonly totalCount = signal(0);
   protected readonly errorMessage = signal<string | null>(null);
+
+  /** The batchId currently being turned into a run, or null when idle. Only
+   *  one run creation is allowed in flight at a time -- every row's action
+   *  disables while this is set, avoiding an ambiguous concurrent request. */
+  protected readonly creatingRunForBatchId = signal<string | null>(null);
+  protected readonly runCreationError = signal<string | null>(null);
 
   private readonly resultsHeading =
     viewChild<ElementRef<HTMLElement>>('resultsHeading');
@@ -94,6 +103,40 @@ export class BatchesPage implements OnInit {
     return status === 'Valid'
       ? 'bg-matched-bg text-matched'
       : 'bg-danger-bg text-danger';
+  }
+
+  /**
+   * Starts a real reconciliation run for one batch and navigates to its
+   * real Workspace on success.
+   *
+   * The 201 response (`ReconciliationRunResult`) is read only for `runId` --
+   * its `status` is the raw backend enum and serializes as a number, unlike
+   * the string status the Workspace itself renders from a fresh GET. Never
+   * rendering that number here (or anywhere) sidesteps the asymmetry
+   * entirely rather than normalizing it.
+   */
+  protected createRun(batch: BatchResponse): void {
+    if (this.creatingRunForBatchId() !== null) {
+      return;
+    }
+
+    this.creatingRunForBatchId.set(batch.batchId);
+    this.runCreationError.set(null);
+
+    this.reconciliationApi.createRun(batch.batchId).subscribe({
+      next: (result) => {
+        this.creatingRunForBatchId.set(null);
+        void this.router.navigateByUrl(`/runs/${result.runId}`);
+      },
+      error: (error: HttpErrorResponse) => {
+        this.creatingRunForBatchId.set(null);
+        this.runCreationError.set(BatchesPage.toRunCreationMessage(error));
+      },
+    });
+  }
+
+  protected dismissRunCreationError(): void {
+    this.runCreationError.set(null);
   }
 
   private load(pageNumber: number, restoreFocusAfter = false): void {
@@ -152,5 +195,23 @@ export class BatchesPage implements OnInit {
     }
 
     return 'Could not load batches. Please try again.';
+  }
+
+  private static toRunCreationMessage(error: HttpErrorResponse): string {
+    if (error.status === 0) {
+      return 'Cannot reach the server. Check that the FinSight API is running and try again.';
+    }
+
+    const detail = isProblemDetails(error.error) ? error.error.detail : undefined;
+
+    if (detail) {
+      return detail;
+    }
+
+    if (error.status >= 500) {
+      return 'The server could not complete the request. Please try again.';
+    }
+
+    return 'Could not start reconciliation. Please try again.';
   }
 }

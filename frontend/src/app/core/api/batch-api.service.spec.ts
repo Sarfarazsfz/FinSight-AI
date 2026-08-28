@@ -268,4 +268,65 @@ describe('BatchApi', () => {
       );
     });
   });
+
+  describe('getBatch', () => {
+    const batchId = '11111111-1111-1111-1111-111111111111';
+    const batchUrl = `${batchesUrl}/${batchId}`;
+
+    it('GETs the configured single-batch URL', () => {
+      api.getBatch(batchId).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url === batchUrl && r.method === 'GET');
+      expect(req.request.method).toBe('GET');
+      req.flush({
+        batchId,
+        batchLabel: 'August Batch 1',
+        paymentRecordCount: 1,
+        bankRecordCount: 1,
+        settlementRecordCount: 1,
+        totalRecordCount: 3,
+        validationStatus: 'Valid',
+        createdBy: 'ops-analyst@finsight.test',
+        createdAt: '2026-08-29T09:00:00Z',
+      });
+    });
+
+    it('maps a real 200 BatchResponse verbatim', () => {
+      const wire: BatchResponse = {
+        batchId,
+        batchLabel: 'August Batch 1',
+        paymentRecordCount: 120,
+        bankRecordCount: 118,
+        settlementRecordCount: 115,
+        totalRecordCount: 353,
+        validationStatus: 'Valid',
+        createdBy: 'ops-analyst@finsight.test',
+        createdAt: '2026-08-29T09:00:00Z',
+      };
+
+      let received: BatchResponse | undefined;
+      api.getBatch(batchId).subscribe((r) => (received = r));
+
+      httpMock.expectOne((r) => r.url === batchUrl).flush(wire);
+
+      expect(received).toEqual(wire);
+    });
+
+    it('surfaces a 404 ProblemDetails unmodified', () => {
+      let body: unknown;
+
+      api.getBatch(batchId).subscribe({
+        next: () => fail('expected the 404 to error'),
+        error: (err) => (body = err.error),
+      });
+
+      httpMock.expectOne((r) => r.url === batchUrl).flush(
+        { title: 'Resource Not Found', status: 404, detail: `Batch '${batchId}' was not found.` },
+        { status: 404, statusText: 'Not Found' },
+      );
+
+      expect(isProblemDetails(body)).toBeTrue();
+      expect((body as { detail: string }).detail).toBe(`Batch '${batchId}' was not found.`);
+    });
+  });
 });

@@ -4,7 +4,7 @@ import {
   HttpTestingController,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { BatchesPage } from './batches-page';
 import { environment } from '../../../environments/environment';
 import type { BatchResponse } from '../../core/models/batch.model';
@@ -13,8 +13,10 @@ import type { PagedResponse } from '../../core/models/paged-response.model';
 describe('BatchesPage', () => {
   let fixture: ComponentFixture<BatchesPage>;
   let httpMock: HttpTestingController;
+  let router: Router;
 
   const batchesUrl = `${environment.apiBaseUrl}/batches`;
+  const runsUrl = `${environment.apiBaseUrl}/reconciliation/runs`;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -23,6 +25,8 @@ describe('BatchesPage', () => {
     });
 
     httpMock = TestBed.inject(HttpTestingController);
+    router = TestBed.inject(Router);
+    spyOn(router, 'navigateByUrl');
     fixture = TestBed.createComponent(BatchesPage);
     fixture.detectChanges();
   });
@@ -224,6 +228,126 @@ describe('BatchesPage', () => {
     expect(link!.textContent).toContain('Upload batch');
 
     expectInitialRequest().flush(page([], 1, 0, 0));
+  });
+
+  it('shows "Run reconciliation" only for Valid batches', () => {
+    expectInitialRequest().flush(
+      page(
+        [
+          batch({ batchId: 'a', validationStatus: 'Valid' }),
+          batch({ batchId: 'b', validationStatus: 'Invalid' }),
+        ],
+        1,
+        1,
+        2,
+      ),
+    );
+    fixture.detectChanges();
+
+    const rows = el().querySelectorAll('[data-testid="batch-row"]');
+    expect(rows[0].querySelector('[data-testid="run-reconciliation-button"]')).toBeTruthy();
+    expect(rows[1].querySelector('[data-testid="run-reconciliation-button"]')).toBeFalsy();
+  });
+
+  it('shows a submitting state and disables all row actions while a run is being created', () => {
+    expectInitialRequest().flush(
+      page(
+        [batch({ batchId: 'a' }), batch({ batchId: 'b' })],
+        1,
+        1,
+        2,
+      ),
+    );
+    fixture.detectChanges();
+
+    const buttons = el().querySelectorAll<HTMLButtonElement>(
+      '[data-testid="run-reconciliation-button"]',
+    );
+    buttons[0].click();
+    fixture.detectChanges();
+
+    expect(buttons[0].textContent).toContain('Running…');
+    expect(buttons[0].disabled).toBeTrue();
+    expect(buttons[1].disabled).toBeTrue();
+
+    httpMock.expectOne((r) => r.url === runsUrl).flush({
+      runId: 'r1',
+      batchId: 'a',
+      status: 2,
+      totalReconciliationUnits: 3,
+      matchedCount: 3,
+      mismatchedCount: 0,
+      missingCount: 0,
+      duplicateCount: 0,
+      unresolvedCount: 0,
+      matchRate: 100,
+    });
+  });
+
+  it('sends exactly { batchId } and navigates to the real returned runId on success', () => {
+    expectInitialRequest().flush(page([batch({ batchId: 'a' })], 1, 1, 1));
+    fixture.detectChanges();
+
+    el().querySelector<HTMLButtonElement>('[data-testid="run-reconciliation-button"]')!.click();
+
+    const req = httpMock.expectOne((r) => r.url === runsUrl && r.method === 'POST');
+    expect(req.request.body).toEqual({ batchId: 'a' });
+
+    req.flush({
+      runId: 'real-run-id-123',
+      batchId: 'a',
+      status: 2,
+      totalReconciliationUnits: 3,
+      matchedCount: 3,
+      mismatchedCount: 0,
+      missingCount: 0,
+      duplicateCount: 0,
+      unresolvedCount: 0,
+      matchRate: 100,
+    });
+
+    expect(router.navigateByUrl).toHaveBeenCalledWith('/runs/real-run-id-123');
+  });
+
+  it('shows an inline banner and preserves the table when run creation fails', () => {
+    expectInitialRequest().flush(page([batch({ batchId: 'a' })], 1, 1, 1));
+    fixture.detectChanges();
+
+    el().querySelector<HTMLButtonElement>('[data-testid="run-reconciliation-button"]')!.click();
+
+    httpMock.expectOne((r) => r.url === runsUrl).flush(
+      { title: 'Resource Not Found', status: 404, detail: "Batch 'a' was not found." },
+      { status: 404, statusText: 'Not Found' },
+    );
+    fixture.detectChanges();
+
+    const banner = el().querySelector('[data-testid="run-creation-error"]');
+    expect(banner).toBeTruthy();
+    expect(banner!.textContent).toContain("Batch 'a' was not found.");
+    expect(router.navigateByUrl).not.toHaveBeenCalled();
+    // The table itself is untouched by the failure.
+    expect(el().querySelectorAll('[data-testid="batch-row"]').length).toBe(1);
+
+    el().querySelector<HTMLButtonElement>('[data-testid="run-creation-error"] button')!.click();
+    fixture.detectChanges();
+    expect(el().querySelector('[data-testid="run-creation-error"]')).toBeFalsy();
+  });
+
+  it('does not render bespoke session-expired copy on a run-creation 401', () => {
+    expectInitialRequest().flush(page([batch({ batchId: 'a' })], 1, 1, 1));
+    fixture.detectChanges();
+
+    el().querySelector<HTMLButtonElement>('[data-testid="run-reconciliation-button"]')!.click();
+
+    httpMock.expectOne((r) => r.url === runsUrl).flush(
+      { title: 'Unauthorized', status: 401 },
+      { status: 401, statusText: 'Unauthorized' },
+    );
+    fixture.detectChanges();
+
+    const text = el().textContent!.toLowerCase();
+    expect(text).not.toContain('session');
+    expect(text).not.toContain('expired');
   });
 
   it('contains no challenge-track or internal roadmap language', () => {

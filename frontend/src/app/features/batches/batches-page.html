@@ -31,6 +31,24 @@
       {{ liveRegionText() }}
     </p>
 
+    @if (runCreationError()) {
+      <div
+        data-testid="run-creation-error"
+        role="alert"
+        class="mt-4 border border-danger rounded-lg bg-danger-bg px-4 py-3
+               flex items-center justify-between gap-4"
+      >
+        <p class="text-small font-semibold text-danger">{{ runCreationError() }}</p>
+        <button
+          type="button"
+          class="text-small font-semibold text-danger underline shrink-0"
+          (click)="dismissRunCreationError()"
+        >
+          Dismiss
+        </button>
+      </div>
+    }
+
     <div class="mt-4 overflow-x-auto">
       @switch (state()) {
         @case ('loading') {
@@ -44,7 +62,8 @@
                 <th scope="col" class="hidden lg:table-cell text-right text-meta uppercase text-text-faint py-2 pr-4">Bank</th>
                 <th scope="col" class="hidden lg:table-cell text-right text-meta uppercase text-text-faint py-2 pr-4">Settlements</th>
                 <th scope="col" class="text-right text-meta uppercase text-text-faint py-2 pr-4">Total</th>
-                <th scope="col" class="text-left text-meta uppercase text-text-faint py-2">Created</th>
+                <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Created</th>
+                <th scope="col" class="text-left text-meta uppercase text-text-faint py-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -56,7 +75,8 @@
                   <td class="hidden lg:table-cell py-3 pr-4"><span class="ml-auto block h-3.5 w-10 rounded bg-surface-sunken animate-pulse"></span></td>
                   <td class="hidden lg:table-cell py-3 pr-4"><span class="ml-auto block h-3.5 w-10 rounded bg-surface-sunken animate-pulse"></span></td>
                   <td class="py-3 pr-4"><span class="ml-auto block h-3.5 w-12 rounded bg-surface-sunken animate-pulse"></span></td>
-                  <td class="py-3"><span class="block h-3.5 w-36 rounded bg-surface-sunken animate-pulse"></span></td>
+                  <td class="py-3 pr-4"><span class="block h-3.5 w-36 rounded bg-surface-sunken animate-pulse"></span></td>
+                  <td class="py-3"><span class="block h-3.5 w-24 rounded bg-surface-sunken animate-pulse"></span></td>
                 </tr>
               }
             </tbody>
@@ -73,7 +93,8 @@
                 <th scope="col" class="hidden lg:table-cell text-right text-meta uppercase text-text-faint py-2 pr-4">Bank</th>
                 <th scope="col" class="hidden lg:table-cell text-right text-meta uppercase text-text-faint py-2 pr-4">Settlements</th>
                 <th scope="col" class="text-right text-meta uppercase text-text-faint py-2 pr-4">Total</th>
-                <th scope="col" class="text-left text-meta uppercase text-text-faint py-2">Created</th>
+                <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Created</th>
+                <th scope="col" class="text-left text-meta uppercase text-text-faint py-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -93,9 +114,27 @@
                   <td class="hidden lg:table-cell py-3 pr-4 text-small text-right tabular">{{ batch.bankRecordCount }}</td>
                   <td class="hidden lg:table-cell py-3 pr-4 text-small text-right tabular">{{ batch.settlementRecordCount }}</td>
                   <td class="py-3 pr-4 text-small text-right tabular font-semibold">{{ batch.totalRecordCount }}</td>
-                  <td class="py-3 text-small">
+                  <td class="py-3 pr-4 text-small">
                     <div>{{ batch.createdAt | date: 'MMM d, y, h:mm a' }}</div>
                     <div class="text-text-muted">by {{ batch.createdBy }}</div>
+                  </td>
+                  <td class="py-3">
+                    @if (batch.validationStatus === 'Valid') {
+                      <button
+                        type="button"
+                        class="h-8 px-3 rounded-md border border-border-strong text-small font-semibold
+                               hover:border-text-faint disabled:opacity-45 disabled:cursor-not-allowed
+                               transition-colors"
+                        data-testid="run-reconciliation-button"
+                        [disabled]="creatingRunForBatchId() !== null"
+                        [attr.aria-busy]="creatingRunForBatchId() === batch.batchId"
+                        (click)="createRun(batch)"
+                      >
+                        {{ creatingRunForBatchId() === batch.batchId ? 'Running…' : 'Run reconciliation' }}
+                      </button>
+                    } @else {
+                      <span class="text-small text-text-faint">—</span>
+                    }
                   </td>
                 </tr>
               }

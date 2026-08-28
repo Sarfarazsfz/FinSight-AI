@@ -59,6 +59,14 @@ export const routes: Routes = [
           ),
         title: 'Upload batch — FinSight',
       },
+      {
+        path: 'runs/:runId',
+        loadComponent: () =>
+          import('./features/runs/run-workspace-page').then(
+            (m) => m.RunWorkspacePage,
+          ),
+        title: 'Run — FinSight',
+      },
     ],
   },
   {

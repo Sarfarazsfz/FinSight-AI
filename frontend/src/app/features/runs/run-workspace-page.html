@@ -1,0 +1,121 @@
+<div class="max-w-[760px]">
+  <section aria-labelledby="run-heading">
+    <h1
+      id="run-heading"
+      #resultHeading
+      tabindex="-1"
+      class="text-h1 outline-none"
+    >
+      {{ batch()?.batchLabel ?? (run() ? 'Batch ' + run()!.batchId : 'Run') }}
+    </h1>
+
+    <p class="sr-only" aria-live="polite">{{ liveRegionText() }}</p>
+
+    @switch (state()) {
+      @case ('loading') {
+        <div class="mt-8 flex flex-col gap-3" aria-hidden="true" data-testid="run-loading">
+          <span class="block h-5 w-40 rounded bg-surface-sunken animate-pulse"></span>
+          <span class="block h-4 w-64 rounded bg-surface-sunken animate-pulse"></span>
+          <span class="block h-4 w-full max-w-[600px] rounded bg-surface-sunken animate-pulse mt-4"></span>
+          <span class="block h-4 w-full max-w-[600px] rounded bg-surface-sunken animate-pulse"></span>
+        </div>
+      }
+      @case ('loaded') {
+        <div class="mt-2 flex flex-wrap items-center gap-3">
+          <span
+            class="inline-flex items-center rounded-full px-2.5 py-0.5 text-small font-semibold"
+            [class]="statusBadgeClasses(run()!.status)"
+            data-testid="run-status"
+          >
+            {{ run()!.status }}
+          </span>
+          <span class="text-small text-text-muted tabular truncate max-w-[420px]" [title]="run()!.runId">
+            Run ID: {{ run()!.runId }}
+          </span>
+        </div>
+
+        @if (!batch()) {
+          <p class="mt-3 text-meta text-text-faint">
+            Batch label unavailable — showing the batch id only.
+          </p>
+        }
+
+        <dl class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 max-w-[600px]" data-testid="run-metadata">
+          <div>
+            <dt class="text-meta uppercase text-text-faint">Created</dt>
+            <dd class="text-small mt-1">{{ run()!.createdAt | date: 'MMM d, y, h:mm a' }}</dd>
+          </div>
+          <div>
+            <dt class="text-meta uppercase text-text-faint">Started</dt>
+            <dd class="text-small mt-1">{{ run()!.startedAt | date: 'MMM d, y, h:mm a' }}</dd>
+          </div>
+          <div>
+            <dt class="text-meta uppercase text-text-faint">Completed</dt>
+            <dd class="text-small mt-1">
+              {{ run()!.completedAt ? (run()!.completedAt | date: 'MMM d, y, h:mm a') : '—' }}
+            </dd>
+          </div>
+          <div>
+            <dt class="text-meta uppercase text-text-faint">Total units</dt>
+            <dd class="text-small tabular mt-1">{{ run()!.totalReconciliationUnits }}</dd>
+          </div>
+          <div>
+            <dt class="text-meta uppercase text-text-faint">Match rate</dt>
+            <dd class="text-small tabular mt-1">
+              {{ run()!.matchRate !== null ? run()!.matchRate + '%' : '—' }}
+            </dd>
+          </div>
+        </dl>
+
+        @if (run()!.status === 'Running' || run()!.status === 'Pending') {
+          <button
+            type="button"
+            class="mt-6 h-9 px-3 rounded-md border border-border-strong text-small font-semibold
+                   hover:border-text-faint transition-colors"
+            data-testid="run-refresh"
+            (click)="retry()"
+          >
+            Refresh
+          </button>
+        }
+      }
+      @case ('not-found') {
+        <div
+          class="mt-8 border border-border rounded-lg bg-surface px-6 py-12
+                 flex flex-col items-center text-center gap-2"
+          data-testid="run-not-found"
+        >
+          <p class="text-h3">Run not found</p>
+          <p class="text-small text-text-muted max-w-[46ch]">
+            This reconciliation run doesn't exist, or the link is out of date.
+          </p>
+          <a
+            routerLink="/batches"
+            class="mt-2 h-10 px-4 inline-flex items-center rounded-md bg-ink text-on-ink
+                   text-small font-semibold hover:bg-ink-strong transition-colors"
+          >
+            Back to Batches
+          </a>
+        </div>
+      }
+      @case ('error') {
+        <div
+          class="mt-8 border border-danger rounded-lg bg-danger-bg px-6 py-8
+                 flex flex-col items-center text-center gap-3"
+          role="alert"
+          data-testid="run-error"
+        >
+          <p class="text-body font-semibold text-danger">{{ errorMessage() }}</p>
+          <button
+            type="button"
+            class="h-10 px-4 rounded-md bg-ink text-on-ink text-small font-semibold
+                   hover:bg-ink-strong transition-colors"
+            (click)="retry()"
+          >
+            Retry
+          </button>
+        </div>
+      }
+    }
+  </section>
+</div>

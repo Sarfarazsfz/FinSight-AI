@@ -7,12 +7,11 @@ import type { PagedResponse } from '../models/paged-response.model';
 
 /**
  * Thin typed wrapper over the batch endpoints this frontend actually
- * consumes: `GET /api/batches` (server-side pagination) and
- * `POST /api/batches` (multipart upload).
- *
- * `GET /api/batches/{batchId}` (detail) has no real consumer yet, so it
- * still has no method here. Add it only when the feature that needs it is
- * actually being built.
+ * consumes: `GET /api/batches` (server-side pagination), `POST /api/batches`
+ * (multipart upload), and `GET /api/batches/{batchId}` (single-batch
+ * detail -- consumed only by the Run Workspace, which receives a bare
+ * `batchId` from the reconciliation run and needs the real `batchLabel` to
+ * answer "what am I looking at").
  */
 @Injectable({ providedIn: 'root' })
 export class BatchApi {
@@ -54,5 +53,9 @@ export class BatchApi {
     formData.append('settlementsFile', settlementsFile);
 
     return this.http.post<BatchIngestionResult>(this.baseUrl, formData);
+  }
+
+  getBatch(batchId: string): Observable<BatchResponse> {
+    return this.http.get<BatchResponse>(`${this.baseUrl}/${batchId}`);
   }
 }
