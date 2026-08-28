@@ -1,0 +1,238 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   FinSight design tokens
+   --------------------------------------------------------------------------
+   Single source of truth for colour, typography, radius, shadow and motion.
+   Authored per docs/design/01-design-system.md.
+
+   Rules enforced here:
+   - The default Tailwind colour palette is cleared, so only FinSight colours
+     exist. `bg-blue-500` and friends are inert by construction.
+   - Text tokens declare font-size, line-height, font-weight and
+     letter-spacing as four explicit properties. The CSS `font` shorthand is
+     never used, because Tailwind cannot read a shorthand into a text token.
+   - No custom --spacing-* tokens. Tailwind's default --spacing (0.25rem)
+     already yields the approved 4/8/12/16/24/32/48/64 scale at multipliers
+     1/2/3/4/6/8/12/16. Defining our own would be redundant and would risk
+     disabling the dynamic scale.
+   - Motion durations are plain custom properties, not a Tailwind namespace:
+     Tailwind v4 has --ease-* but no --duration-* namespace.
+   ========================================================================== */
+
+@theme {
+  /* ---------------------------------------------------------------------
+     Colour — the default palette is cleared first so that only approved
+     FinSight colours can be referenced anywhere in the product.
+     --------------------------------------------------------------------- */
+  --color-*: initial;
+
+  /* CSS-wide keywords and monochrome, re-declared after the reset. */
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-white: #ffffff;
+  --color-black: #000000;
+
+  /* Base surfaces */
+  --color-bg: #faf8f4;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f4f1ea;
+  --color-border: #e6e1d8;
+  --color-border-strong: #d5cec0;
+
+  /* Text */
+  --color-text: #17140f;
+  --color-text-muted: #6b6558;
+  /* Darkened from #9c9587 (2.80:1) to meet WCAG AA 4.5:1 as normal text —
+     this token carries table column labels at --text-meta (12px). Hue and
+     saturation preserved; lightness only. */
+  --color-text-faint: #6f685b;
+
+  /* Dark surfaces (primary CTA fill, dark bands) */
+  --color-ink: #14120e;
+  --color-ink-strong: #0b0a08;
+  --color-on-ink: #f4f2ec;
+
+  /* Accent — exactly one. Primary action, links, focus, active, verified.
+     Never decorative. */
+  --color-accent: #0b6b60;
+  --color-accent-strong: #084f47;
+  --color-accent-soft: #e6f2ef;
+  --color-on-accent: #fbfaf7;
+
+  /* Feedback */
+  --color-danger: #b3261e;
+  --color-danger-bg: #fbeae9;
+
+  /* Reconciliation status — six families, foreground + background each.
+     Status is never conveyed by colour alone; every rendering pairs these
+     with a text label. */
+  /* Status foregrounds render on their paired background at --text-meta
+     (12px = normal text), so each must reach WCAG AA 4.5:1. Three were
+     darkened; hue and saturation preserved, lightness only. Backgrounds
+     are unchanged. */
+  --color-matched: #19724c; /* was #1c8a5b — 3.90:1 */
+  --color-matched-bg: #e8f6ee;
+  --color-mismatched: #b04d08; /* was #b45309 — 4.49:1 */
+  --color-mismatched-bg: #fbf1e1;
+  --color-missing: #5b6472;
+  --color-missing-bg: #edf0f3;
+  --color-duplicate: #2a5caa;
+  --color-duplicate-bg: #e8eff9;
+  --color-unresolved: #b3261e;
+  --color-unresolved-bg: #fbeae9;
+  --color-pending: #6d6457; /* was #82786a — 3.74:1 */
+  --color-pending-bg: #f1eee7;
+
+  /* ---------------------------------------------------------------------
+     Typography — one family, self-hosted Inter.
+     --------------------------------------------------------------------- */
+  --font-sans: "Inter", -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+
+  /* display — landing hero only */
+  --text-display: clamp(2.5rem, 2rem + 2.2vw, 4rem);
+  --text-display--line-height: 1.08;
+  --text-display--font-weight: 600;
+  --text-display--letter-spacing: -0.02em;
+
+  /* h1 — page titles */
+  --text-h1: clamp(1.75rem, 1.55rem + 0.9vw, 2.25rem);
+  --text-h1--line-height: 1.18;
+  --text-h1--font-weight: 600;
+  --text-h1--letter-spacing: -0.015em;
+
+  /* h2 — section titles */
+  --text-h2: 1.5rem;
+  --text-h2--line-height: 1.28;
+  --text-h2--font-weight: 600;
+  --text-h2--letter-spacing: -0.01em;
+
+  /* h3 — card and panel titles */
+  --text-h3: 1.125rem;
+  --text-h3--line-height: 1.35;
+  --text-h3--font-weight: 600;
+  --text-h3--letter-spacing: normal;
+
+  /* body-lg — lead paragraphs, landing subheads */
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.6;
+  --text-body-lg--font-weight: 400;
+  --text-body-lg--letter-spacing: normal;
+
+  /* body — default */
+  --text-body: 1rem;
+  --text-body--line-height: 1.55;
+  --text-body--font-weight: 400;
+  --text-body--letter-spacing: normal;
+
+  /* small — table cells, secondary text */
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.45;
+  --text-small--font-weight: 400;
+  --text-small--letter-spacing: normal;
+
+  /* meta — uppercase eyebrows, column labels, timestamps */
+  --text-meta: 0.75rem;
+  --text-meta--line-height: 1.4;
+  --text-meta--font-weight: 500;
+  --text-meta--letter-spacing: 0.06em;
+
+  /* num-hero — the match rate */
+  --text-num-hero: clamp(2.5rem, 2.1rem + 1.6vw, 3.5rem);
+  --text-num-hero--line-height: 1.05;
+  --text-num-hero--font-weight: 600;
+  --text-num-hero--letter-spacing: -0.02em;
+
+  /* num-lg — stat tiles */
+  --text-num-lg: 1.75rem;
+  --text-num-lg--line-height: 1.2;
+  --text-num-lg--font-weight: 600;
+  --text-num-lg--letter-spacing: normal;
+
+  /* ---------------------------------------------------------------------
+     Radius — deliberately restrained. Heavy rounding reads as consumer SaaS.
+     --------------------------------------------------------------------- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 999px;
+
+  /* ---------------------------------------------------------------------
+     Shadow — minimal. Hierarchy comes from spacing and hairline borders,
+     not elevation. No dashboard-card stacks.
+     --------------------------------------------------------------------- */
+  --shadow-sm: 0 1px 2px rgb(23 20 15 / 0.05);
+  --shadow-md: 0 6px 20px rgb(23 20 15 / 0.07);
+
+  /* ---------------------------------------------------------------------
+     Motion — easing is a Tailwind namespace; duration is not.
+     --------------------------------------------------------------------- */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Motion durations. Plain custom properties, deliberately prefixed --fs-* so
+   nobody expects a `duration-fast` utility: Tailwind v4 has no --duration-*
+   namespace. */
+:root {
+  --fs-duration-fast: 150ms;
+  --fs-duration-base: 200ms;
+}
+
+/* ==========================================================================
+   Base layer — minimal. No component styles belong here.
+   ========================================================================== */
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* One consistent focus treatment for every interactive element in the
+     product. Keyboard users always see exactly this ring. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* ==========================================================================
+   Utilities
+   ========================================================================== */
+
+/* Tabular numerals for amounts, percentages, counts, page numbers and
+   transaction references — anywhere digits must align down a column. */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ==========================================================================
+   Reduced motion — zeroed in the token layer so no component can opt out,
+   with a blanket rule as a second line of defence.
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --fs-duration-fast: 0ms;
+    --fs-duration-base: 0ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

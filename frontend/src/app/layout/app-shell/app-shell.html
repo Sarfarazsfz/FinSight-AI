@@ -1,0 +1,81 @@
+<div class="min-h-screen bg-bg text-text flex flex-col lg:flex-row">
+  <a
+    class="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:top-4
+           focus-visible:left-4 focus-visible:z-50 focus-visible:bg-ink
+           focus-visible:text-on-ink focus-visible:px-4 focus-visible:py-2
+           focus-visible:rounded-md"
+    href="#main-content"
+  >
+    Skip to content
+  </a>
+
+  <!-- Compact top bar below the rail breakpoint -->
+  <header
+    class="lg:hidden border-b border-border bg-surface px-6 h-16
+           flex items-center justify-between"
+  >
+    <a routerLink="/batches" class="text-h3 tracking-tight">FinSight</a>
+
+    <div class="flex items-center gap-4">
+      <span class="text-small text-text-muted hidden sm:inline">{{ userEmail() }}</span>
+      <button
+        type="button"
+        class="text-small font-semibold text-text-muted hover:text-text px-2 py-1 rounded-sm"
+        (click)="logout()"
+      >
+        Log out
+      </button>
+    </div>
+  </header>
+
+  <nav
+    class="lg:hidden border-b border-border bg-surface px-6 py-2 flex gap-4"
+    aria-label="Primary"
+  >
+    @for (item of navItems; track item.link) {
+      <a
+        [routerLink]="item.link"
+        routerLinkActive="text-text font-semibold"
+        class="text-small text-text-muted py-1"
+      >
+        {{ item.label }}
+      </a>
+    }
+  </nav>
+
+  <!-- Left rail from lg upward -->
+  <aside
+    class="hidden lg:flex lg:flex-col w-[232px] shrink-0 border-r border-border px-4 py-6 gap-8"
+  >
+    <a routerLink="/batches" class="text-h3 tracking-tight px-3">FinSight</a>
+
+    <nav class="flex-1 flex flex-col gap-1" aria-label="Primary">
+      @for (item of navItems; track item.link) {
+        <a
+          [routerLink]="item.link"
+          routerLinkActive="bg-surface text-text font-semibold shadow-[inset_2px_0_0_var(--color-accent)]"
+          class="px-3 py-2 rounded-sm text-small text-text-muted
+                 hover:bg-surface hover:text-text transition-colors"
+        >
+          {{ item.label }}
+        </a>
+      }
+    </nav>
+
+    <div class="border-t border-border pt-4 flex flex-col gap-2">
+      <span class="px-3 text-small text-text-muted break-words">{{ userEmail() }}</span>
+      <button
+        type="button"
+        class="px-3 py-2 rounded-sm text-small font-semibold text-text-muted
+               text-left hover:bg-surface hover:text-text transition-colors"
+        (click)="logout()"
+      >
+        Log out
+      </button>
+    </div>
+  </aside>
+
+  <main id="main-content" class="flex-1 min-w-0 px-6 py-8 lg:px-12 lg:py-12">
+    <router-outlet />
+  </main>
+</div>

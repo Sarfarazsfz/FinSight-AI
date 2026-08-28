@@ -1,0 +1,88 @@
+<div class="min-h-screen bg-bg text-text flex flex-col">
+  <header class="border-b border-border">
+    <div class="mx-auto w-full max-w-[1180px] px-6 h-16 flex items-center">
+      <span class="text-h3 tracking-tight">FinSight</span>
+    </div>
+  </header>
+
+  <main id="main-content" class="flex-1 flex items-center justify-center px-6 py-12">
+    <div class="w-full max-w-[400px]">
+      <h1 class="text-h1">Sign in</h1>
+      <p class="text-small text-text-muted mt-2">
+        Reconcile a batch, review exceptions and verify results.
+      </p>
+
+      <form
+        class="mt-8 flex flex-col gap-4"
+        [formGroup]="form"
+        (ngSubmit)="submit()"
+        novalidate
+      >
+        <div class="flex flex-col gap-2">
+          <label class="text-small font-semibold" for="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            inputmode="email"
+            autocomplete="email"
+            formControlName="email"
+            class="h-11 px-4 rounded-md border bg-surface text-body
+                   border-border-strong hover:border-text-faint
+                   focus-visible:border-accent
+                   disabled:opacity-55"
+            [class.border-danger]="emailInvalid"
+            [attr.aria-invalid]="emailInvalid"
+            [attr.aria-describedby]="emailInvalid ? 'email-error' : null"
+          />
+          @if (emailInvalid) {
+            <p id="email-error" class="text-small text-danger" role="alert">
+              Enter a valid email address.
+            </p>
+          }
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <label class="text-small font-semibold" for="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            autocomplete="current-password"
+            formControlName="password"
+            class="h-11 px-4 rounded-md border bg-surface text-body
+                   border-border-strong hover:border-text-faint
+                   focus-visible:border-accent
+                   disabled:opacity-55"
+            [class.border-danger]="passwordInvalid"
+            [attr.aria-invalid]="passwordInvalid"
+            [attr.aria-describedby]="passwordInvalid ? 'password-error' : null"
+          />
+          @if (passwordInvalid) {
+            <p id="password-error" class="text-small text-danger" role="alert">
+              Password is required.
+            </p>
+          }
+        </div>
+
+        @if (authError()) {
+          <p
+            data-testid="auth-error"
+            class="text-small text-danger bg-danger-bg rounded-md px-4 py-3"
+            role="alert"
+          >
+            {{ authError() }}
+          </p>
+        }
+
+        <button
+          type="submit"
+          class="h-11 mt-2 rounded-md bg-ink text-on-ink text-small font-semibold
+                 hover:bg-ink-strong disabled:opacity-55 disabled:cursor-not-allowed
+                 transition-colors"
+          [disabled]="isSubmitting()"
+        >
+          {{ isSubmitting() ? 'Signing in…' : 'Sign in' }}
+        </button>
+      </form>
+    </div>
+  </main>
+</div>
