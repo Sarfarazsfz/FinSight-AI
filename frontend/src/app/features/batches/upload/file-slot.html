@@ -1,0 +1,74 @@
+<div class="flex flex-col gap-2">
+  <span class="text-small font-semibold" [id]="inputId + '-label'">{{ label() }}</span>
+
+  <input
+    [id]="inputId"
+    type="file"
+    accept=".csv,text/csv"
+    class="peer sr-only"
+    [attr.aria-labelledby]="inputId + '-label'"
+    [disabled]="disabled()"
+    (change)="onInputChange($event)"
+    data-testid="file-slot-input"
+  />
+
+  @if (!file()) {
+    <label
+      [for]="inputId"
+      class="rounded-md border-2 border-dashed px-4 py-6 flex flex-col items-center text-center gap-1
+             cursor-pointer transition-colors
+             peer-focus-visible:outline peer-focus-visible:outline-2
+             peer-focus-visible:outline-accent peer-focus-visible:outline-offset-2"
+      [class.border-border-strong]="!isDragOver()"
+      [class.border-accent]="isDragOver()"
+      [class.bg-accent-soft]="isDragOver()"
+      [class.opacity-55]="disabled()"
+      [class.pointer-events-none]="disabled()"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave()"
+      (drop)="onDrop($event)"
+      data-testid="file-slot-dropzone"
+    >
+      <span class="text-small text-text-muted">
+        Drag a CSV here, or <span class="underline">Browse</span>
+      </span>
+      @if (hint()) {
+        <span class="text-meta text-text-faint">{{ hint() }}</span>
+      }
+    </label>
+  } @else {
+    <div
+      class="rounded-md border border-border bg-surface px-4 py-3 flex items-center justify-between gap-3"
+      data-testid="file-slot-selected"
+    >
+      <div class="min-w-0">
+        <p class="text-small font-semibold truncate" [title]="file()!.name">{{ file()!.name }}</p>
+        <p class="text-meta text-text-muted tabular">{{ formatSize(file()!.size) }}</p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <label
+          [for]="inputId"
+          class="h-8 px-2.5 inline-flex items-center rounded-md border border-border-strong text-small font-semibold
+                 hover:border-text-faint cursor-pointer transition-colors
+                 peer-focus-visible:outline peer-focus-visible:outline-2
+                 peer-focus-visible:outline-accent peer-focus-visible:outline-offset-2"
+          [class.opacity-55]="disabled()"
+          [class.pointer-events-none]="disabled()"
+          [attr.aria-label]="'Replace ' + label()"
+        >
+          Replace
+        </label>
+        <button
+          type="button"
+          class="h-8 px-2.5 rounded-md border border-border-strong text-small font-semibold
+                 hover:border-text-faint disabled:opacity-55 disabled:cursor-not-allowed transition-colors"
+          [disabled]="disabled()"
+          [attr.aria-label]="'Remove ' + label()"
+          (click)="remove()"
+        >
+          Remove
+        </button>
+      </div>
+    </div>
+  }
+</div>

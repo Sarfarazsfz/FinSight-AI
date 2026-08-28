@@ -1,0 +1,177 @@
+<div class="max-w-[760px]">
+  <h1 class="text-h1">Upload batch</h1>
+  <p class="text-body text-text-muted mt-2 max-w-[60ch]">
+    Provide matching Payment, Bank and Settlement records for the same
+    period. All three files are required.
+  </p>
+
+  <section class="mt-8" aria-labelledby="upload-result-heading">
+    <h2
+      id="upload-result-heading"
+      #resultHeading
+      tabindex="-1"
+      class="sr-only"
+    >
+      Upload result
+    </h2>
+
+    <p class="sr-only" aria-live="polite">{{ liveRegionText() }}</p>
+
+    @switch (state()) {
+      @case ('success') {
+        <div
+          data-testid="upload-success"
+          class="border border-matched rounded-lg bg-matched-bg px-6 py-8 flex flex-col gap-5"
+        >
+          <div>
+            <p class="text-h3 text-matched">Batch uploaded successfully</p>
+            <p class="text-small text-text-muted mt-1">
+              Label entered: {{ batchLabel() }}
+            </p>
+          </div>
+
+          <dl class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4">
+            <div>
+              <dt class="text-meta uppercase text-text-faint">Batch ID</dt>
+              <dd class="text-small tabular truncate" [title]="result()!.batchId">
+                {{ result()!.batchId }}
+              </dd>
+            </div>
+            <div>
+              <dt class="text-meta uppercase text-text-faint">Status</dt>
+              <dd class="text-small">{{ result()!.validationStatus }}</dd>
+            </div>
+            <div>
+              <dt class="text-meta uppercase text-text-faint">Payments</dt>
+              <dd class="text-small tabular">{{ result()!.paymentRecordCount }}</dd>
+            </div>
+            <div>
+              <dt class="text-meta uppercase text-text-faint">Bank</dt>
+              <dd class="text-small tabular">{{ result()!.bankRecordCount }}</dd>
+            </div>
+            <div>
+              <dt class="text-meta uppercase text-text-faint">Settlements</dt>
+              <dd class="text-small tabular">{{ result()!.settlementRecordCount }}</dd>
+            </div>
+            <div>
+              <dt class="text-meta uppercase text-text-faint">Total</dt>
+              <dd class="text-small tabular font-semibold">{{ result()!.totalRecordCount }}</dd>
+            </div>
+          </dl>
+
+          <div class="flex flex-wrap gap-3">
+            <button
+              type="button"
+              class="h-10 px-4 rounded-md bg-ink text-on-ink text-small font-semibold
+                     hover:bg-ink-strong transition-colors"
+              (click)="goToHistory()"
+            >
+              View batch history
+            </button>
+            <button
+              type="button"
+              class="h-10 px-4 rounded-md border border-border-strong text-small font-semibold
+                     hover:border-text-faint transition-colors"
+              (click)="reset()"
+            >
+              Upload another batch
+            </button>
+          </div>
+        </div>
+      }
+      @default {
+        <form (submit)="onSubmit($event)" novalidate class="flex flex-col gap-6">
+          <div class="flex flex-col gap-2">
+            <label class="text-small font-semibold" for="batch-label">Batch label</label>
+            <input
+              id="batch-label"
+              type="text"
+              maxlength="100"
+              [value]="batchLabel()"
+              (input)="onLabelInput($event)"
+              [disabled]="state() === 'submitting'"
+              class="h-11 px-4 rounded-md border bg-surface text-body max-w-[420px]
+                     border-border-strong hover:border-text-faint
+                     focus-visible:border-accent disabled:opacity-55"
+            />
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <app-file-slot
+              label="Payment file"
+              hint="payment_record_id, transaction_reference, amount, currency, transaction_date, payment_status"
+              [file]="paymentsFile()"
+              [disabled]="state() === 'submitting'"
+              (fileSelected)="paymentsFile.set($event)"
+              (fileRemoved)="paymentsFile.set(null)"
+            />
+            <app-file-slot
+              label="Bank file"
+              hint="bank_record_id, transaction_reference, amount, currency, transaction_date, bank_status"
+              [file]="bankFile()"
+              [disabled]="state() === 'submitting'"
+              (fileSelected)="bankFile.set($event)"
+              (fileRemoved)="bankFile.set(null)"
+            />
+            <app-file-slot
+              label="Settlement file"
+              hint="settlement_record_id, transaction_reference, amount, currency, transaction_date, settlement_status"
+              [file]="settlementsFile()"
+              [disabled]="state() === 'submitting'"
+              (fileSelected)="settlementsFile.set($event)"
+              (fileRemoved)="settlementsFile.set(null)"
+            />
+          </div>
+
+          @if (state() === 'error') {
+            <div
+              data-testid="upload-error"
+              role="alert"
+              class="border border-danger rounded-lg bg-danger-bg px-4 py-4 flex flex-col gap-4"
+            >
+              @if (hasStructuredErrors()) {
+                @for (group of errorGroupEntries(); track group[0]) {
+                  <div>
+                    <h3 class="text-small font-semibold text-danger">{{ group[0] }}</h3>
+                    <ul class="mt-1 flex flex-col gap-1">
+                      @for (err of visibleErrors(group[0], group[1]); track $index) {
+                        <li class="text-small text-danger">
+                          Row {{ err.rowNumber }} — {{ err.field }}: {{ err.message }}
+                        </li>
+                      }
+                    </ul>
+                    @if (group[1].length > maxErrorsShownPerGroup && !isExpanded(group[0])) {
+                      <button
+                        type="button"
+                        class="text-small font-semibold underline text-danger mt-1"
+                        (click)="expand(group[0])"
+                      >
+                        Show all {{ group[1].length }} errors
+                      </button>
+                    }
+                  </div>
+                }
+              } @else {
+                <p class="text-small font-semibold text-danger" data-testid="upload-error-detail">
+                  {{ errorDetail() }}
+                </p>
+              }
+            </div>
+          }
+
+          <div>
+            <button
+              type="submit"
+              [disabled]="!canSubmit()"
+              class="h-11 px-5 rounded-md bg-ink text-on-ink text-small font-semibold
+                     hover:bg-ink-strong disabled:opacity-55 disabled:cursor-not-allowed
+                     transition-colors"
+            >
+              {{ state() === 'submitting' ? 'Uploading…' : 'Upload batch' }}
+            </button>
+          </div>
+        </form>
+      }
+    }
+  </section>
+</div>

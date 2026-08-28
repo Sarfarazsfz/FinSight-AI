@@ -51,6 +51,14 @@ export const routes: Routes = [
           import('./features/batches/batches-page').then((m) => m.BatchesPage),
         title: 'Batches — FinSight',
       },
+      {
+        path: 'batches/upload',
+        loadComponent: () =>
+          import('./features/batches/upload/batch-upload-page').then(
+            (m) => m.BatchUploadPage,
+          ),
+        title: 'Upload batch — FinSight',
+      },
     ],
   },
   {
