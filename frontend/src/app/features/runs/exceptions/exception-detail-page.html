@@ -1,0 +1,269 @@
+<div class="max-w-[900px]">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <h1
+        id="exception-heading"
+        #resultHeading
+        tabindex="-1"
+        class="text-h1 outline-none"
+      >
+        {{ exception()?.transactionReference ?? 'Exception' }}
+      </h1>
+      <p class="text-body text-text-muted mt-2 max-w-[60ch]">
+        Source evidence and discrepancy detail for this reconciliation exception.
+      </p>
+    </div>
+
+    <a
+      [routerLink]="['/runs', runId(), 'exceptions']"
+      class="h-10 px-4 inline-flex items-center rounded-md border border-border-strong
+             text-small font-semibold hover:border-text-faint transition-colors shrink-0"
+    >
+      ← Back to exceptions
+    </a>
+  </div>
+
+  <section class="mt-8" aria-labelledby="exception-heading">
+    <p class="sr-only" aria-live="polite" [attr.aria-busy]="state() === 'loading'">
+      {{ liveRegionText() }}
+    </p>
+
+    @switch (state()) {
+      @case ('loading') {
+        <div class="mt-2 flex flex-col gap-3" aria-hidden="true" data-testid="detail-loading">
+          <span class="block h-5 w-40 rounded bg-surface-sunken animate-pulse"></span>
+          <span class="block h-4 w-64 rounded bg-surface-sunken animate-pulse"></span>
+          <span class="block h-32 w-full rounded bg-surface-sunken animate-pulse mt-4"></span>
+        </div>
+      }
+      @case ('loaded') {
+        <nav
+          class="mt-2 flex items-center justify-between gap-4"
+          aria-label="Exception navigation"
+          data-testid="exception-navigation"
+        >
+          <button
+            type="button"
+            class="h-9 px-3 rounded-md border border-border-strong text-small font-semibold
+                   hover:border-text-faint disabled:opacity-45 disabled:cursor-not-allowed
+                   transition-colors"
+            [disabled]="!hasPrevious() || navigatingBoundary()"
+            [attr.aria-disabled]="!hasPrevious() || navigatingBoundary()"
+            aria-label="Previous exception"
+            (click)="goToPrevious()"
+          >
+            ← Previous
+          </button>
+
+          <span class="text-small text-text-muted">
+            @if (queueTotalPages() > 0) {
+              Queue page {{ queuePageNumber() }} of {{ queueTotalPages() }}
+            }
+          </span>
+
+          <button
+            type="button"
+            class="h-9 px-3 rounded-md border border-border-strong text-small font-semibold
+                   hover:border-text-faint disabled:opacity-45 disabled:cursor-not-allowed
+                   transition-colors"
+            [disabled]="!hasNext() || navigatingBoundary()"
+            [attr.aria-disabled]="!hasNext() || navigatingBoundary()"
+            aria-label="Next exception"
+            (click)="goToNext()"
+          >
+            Next →
+          </button>
+        </nav>
+
+        <div class="mt-6 flex flex-wrap items-center gap-3">
+          <span
+            class="inline-flex items-center rounded-full px-2.5 py-0.5 text-small font-semibold"
+            [class]="categoryBadgeClasses(exception()!.category)"
+            data-testid="exception-category"
+          >
+            {{ exception()!.category }}
+          </span>
+          <span class="text-small text-text-muted">
+            Involved sources: {{ formatInvolvedSources(exception()!.involvedSources) }}
+          </span>
+        </div>
+
+        <dl class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 max-w-[500px]">
+          <div>
+            <dt class="text-meta uppercase text-text-faint">Created</dt>
+            <dd class="text-small mt-1">{{ exception()!.createdAt | date: 'MMM d, y, h:mm a' }}</dd>
+          </div>
+          <div>
+            <dt class="text-meta uppercase text-text-faint">Updated</dt>
+            <dd class="text-small mt-1">
+              {{ exception()!.updatedAt ? (exception()!.updatedAt | date: 'MMM d, y, h:mm a') : '—' }}
+            </dd>
+          </div>
+        </dl>
+
+        <!-- Evidence appears before discrepancy interpretation -- verified backend data
+             outranks anything derived from it, visually and positionally. -->
+        @if (evidence()) {
+          <div class="mt-8 flex flex-col gap-8">
+            <div data-testid="evidence-section-payment">
+              <h2 class="text-h3">Payment records</h2>
+              @if (evidence()!.payments.length === 0) {
+                <p class="mt-2 text-small text-text-muted">No matching payment record.</p>
+              } @else {
+                <div class="mt-2 overflow-x-auto">
+                  <table class="w-full border-collapse">
+                    <caption class="sr-only">Payment records</caption>
+                    <thead>
+                      <tr class="border-b border-border">
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Record ID</th>
+                        <th scope="col" class="text-right text-meta uppercase text-text-faint py-2 pr-4">Amount</th>
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Currency</th>
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Date</th>
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Status</th>
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2">Created</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (rec of evidence()!.payments; track rec.id) {
+                        <tr class="border-b border-border" data-testid="evidence-row-payment">
+                          <td class="py-3 pr-4 text-small">{{ rec.sourceRecordIdentifier }}</td>
+                          <td class="py-3 pr-4 text-small text-right tabular">{{ rec.amount }}</td>
+                          <td class="py-3 pr-4 text-small">{{ rec.currency }}</td>
+                          <td class="py-3 pr-4 text-small">{{ rec.transactionDate }}</td>
+                          <td class="py-3 pr-4 text-small">{{ rec.status }}</td>
+                          <td class="py-3 text-small">{{ rec.createdAt | date: 'MMM d, y, h:mm a' }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            </div>
+
+            <div data-testid="evidence-section-bank">
+              <h2 class="text-h3">Bank records</h2>
+              @if (evidence()!.banks.length === 0) {
+                <p class="mt-2 text-small text-text-muted">No matching bank record.</p>
+              } @else {
+                <div class="mt-2 overflow-x-auto">
+                  <table class="w-full border-collapse">
+                    <caption class="sr-only">Bank records</caption>
+                    <thead>
+                      <tr class="border-b border-border">
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Record ID</th>
+                        <th scope="col" class="text-right text-meta uppercase text-text-faint py-2 pr-4">Amount</th>
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Currency</th>
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Date</th>
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Status</th>
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2">Created</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (rec of evidence()!.banks; track rec.id) {
+                        <tr class="border-b border-border" data-testid="evidence-row-bank">
+                          <td class="py-3 pr-4 text-small">{{ rec.sourceRecordIdentifier }}</td>
+                          <td class="py-3 pr-4 text-small text-right tabular">{{ rec.amount }}</td>
+                          <td class="py-3 pr-4 text-small">{{ rec.currency }}</td>
+                          <td class="py-3 pr-4 text-small">{{ rec.transactionDate }}</td>
+                          <td class="py-3 pr-4 text-small">{{ rec.status }}</td>
+                          <td class="py-3 text-small">{{ rec.createdAt | date: 'MMM d, y, h:mm a' }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            </div>
+
+            <div data-testid="evidence-section-settlement">
+              <h2 class="text-h3">Settlement records</h2>
+              @if (evidence()!.settlements.length === 0) {
+                <p class="mt-2 text-small text-text-muted">No matching settlement record.</p>
+              } @else {
+                <div class="mt-2 overflow-x-auto">
+                  <table class="w-full border-collapse">
+                    <caption class="sr-only">Settlement records</caption>
+                    <thead>
+                      <tr class="border-b border-border">
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Record ID</th>
+                        <th scope="col" class="text-right text-meta uppercase text-text-faint py-2 pr-4">Amount</th>
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Currency</th>
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Date</th>
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Status</th>
+                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2">Created</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (rec of evidence()!.settlements; track rec.id) {
+                        <tr class="border-b border-border" data-testid="evidence-row-settlement">
+                          <td class="py-3 pr-4 text-small">{{ rec.sourceRecordIdentifier }}</td>
+                          <td class="py-3 pr-4 text-small text-right tabular">{{ rec.amount }}</td>
+                          <td class="py-3 pr-4 text-small">{{ rec.currency }}</td>
+                          <td class="py-3 pr-4 text-small">{{ rec.transactionDate }}</td>
+                          <td class="py-3 pr-4 text-small">{{ rec.status }}</td>
+                          <td class="py-3 text-small">{{ rec.createdAt | date: 'MMM d, y, h:mm a' }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+        <div class="mt-8">
+          <h2 id="discrepancy-heading" class="text-h3">Discrepancy detail</h2>
+          <p class="mt-1 text-small text-text-muted max-w-[60ch]">
+            Raw detail recorded by the reconciliation engine for this exception.
+          </p>
+          <div class="mt-2 overflow-x-auto">
+            <pre
+              aria-labelledby="discrepancy-heading"
+              tabindex="0"
+              class="text-small bg-surface-sunken rounded-md px-4 py-3 whitespace-pre"
+              data-testid="discrepancy-detail"
+            >{{ discrepancyPretty() }}</pre>
+          </div>
+        </div>
+      }
+      @case ('not-found') {
+        <div
+          data-testid="detail-not-found"
+          class="mt-8 border border-border rounded-lg bg-surface px-6 py-12
+                 flex flex-col items-center text-center gap-2"
+        >
+          <p class="text-h3">Exception not found</p>
+          <p class="text-small text-text-muted max-w-[46ch]">
+            This reconciliation exception doesn't exist, or the link is out of date.
+          </p>
+          <a
+            [routerLink]="['/runs', runId(), 'exceptions']"
+            class="mt-2 h-10 px-4 inline-flex items-center rounded-md bg-ink text-on-ink
+                   text-small font-semibold hover:bg-ink-strong transition-colors"
+          >
+            Back to exceptions
+          </a>
+        </div>
+      }
+      @case ('error') {
+        <div
+          data-testid="detail-error"
+          class="mt-8 border border-danger rounded-lg bg-danger-bg px-6 py-8
+                 flex flex-col items-center text-center gap-3"
+          role="alert"
+        >
+          <p class="text-body font-semibold text-danger">{{ errorMessage() }}</p>
+          <button
+            type="button"
+            class="h-10 px-4 rounded-md bg-ink text-on-ink text-small font-semibold
+                   hover:bg-ink-strong transition-colors"
+            (click)="retry()"
+          >
+            Retry
+          </button>
+        </div>
+      }
+    }
+  </section>
+</div>

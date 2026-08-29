@@ -83,6 +83,22 @@ export const routes: Routes = [
           ),
         title: 'Evidence — FinSight',
       },
+      {
+        path: 'runs/:runId/exceptions',
+        loadComponent: () =>
+          import('./features/runs/exceptions/exceptions-page').then(
+            (m) => m.ExceptionsPage,
+          ),
+        title: 'Exceptions — FinSight',
+      },
+      {
+        path: 'runs/:runId/exceptions/:exceptionId',
+        loadComponent: () =>
+          import('./features/runs/exceptions/exception-detail-page').then(
+            (m) => m.ExceptionDetailPage,
+          ),
+        title: 'Exception — FinSight',
+      },
     ],
   },
   {

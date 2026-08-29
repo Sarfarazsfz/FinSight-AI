@@ -8,6 +8,7 @@ import { ReconciliationApi } from './reconciliation-api.service';
 import { environment } from '../../../environments/environment';
 import { isProblemDetails } from '../models/problem-details.model';
 import type {
+  ReconciliationExceptionResponse,
   ReconciliationResultResponse,
   ReconciliationRunDetailsResponse,
   ReconciliationRunResult,
@@ -358,4 +359,145 @@ describe('ReconciliationApi', () => {
       ...overrides,
     };
   }
+
+  const exceptionId = '44444444-4444-4444-4444-444444444444';
+
+  function makeExceptionItem(
+    overrides: Partial<ReconciliationExceptionResponse> = {},
+  ): ReconciliationExceptionResponse {
+    return {
+      exceptionId,
+      runId,
+      reconciliationResultId: resultId,
+      transactionReference: 'TXN-0001',
+      category: 'AmountMismatch',
+      involvedSources: 'Payment,Bank',
+      discrepancyDetail: '{"transaction_reference":"TXN-0001"}',
+      aiExplanation: null,
+      aiSuggestedCategory: null,
+      aiExplanationGeneratedAt: null,
+      createdAt: '2026-08-29T09:00:00Z',
+      updatedAt: null,
+      ...overrides,
+    };
+  }
+
+  describe('getExceptions', () => {
+    const exceptionsUrl = `${runsUrl}/${runId}/exceptions`;
+
+    it('GETs the configured exceptions URL', () => {
+      api.getExceptions(runId, 1, 50).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url === exceptionsUrl && r.method === 'GET');
+      expect(req.request.method).toBe('GET');
+      req.flush({ items: [], pageNumber: 1, pageSize: 50, totalCount: 0, totalPages: 0 });
+    });
+
+    it('sends pageNumber and pageSize as query parameters, nothing else', () => {
+      api.getExceptions(runId, 2, 50).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url === exceptionsUrl);
+      expect(req.request.params.get('pageNumber')).toBe('2');
+      expect(req.request.params.get('pageSize')).toBe('50');
+      expect(req.request.params.keys().sort()).toEqual(['pageNumber', 'pageSize']);
+
+      req.flush({ items: [], pageNumber: 2, pageSize: 50, totalCount: 0, totalPages: 0 });
+    });
+
+    it('maps a real 200 verbatim, including nullable AI fields staying null', () => {
+      const wire: PagedResponse<ReconciliationExceptionResponse> = {
+        items: [makeExceptionItem()],
+        pageNumber: 1,
+        pageSize: 50,
+        totalCount: 1,
+        totalPages: 1,
+      };
+
+      let received: PagedResponse<ReconciliationExceptionResponse> | undefined;
+      api.getExceptions(runId, 1, 50).subscribe((r) => (received = r));
+
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(wire);
+
+      expect(received).toEqual(wire);
+      expect(received!.items[0].aiExplanation).toBeNull();
+      expect(received!.items[0].aiSuggestedCategory).toBeNull();
+      expect(received!.items[0].aiExplanationGeneratedAt).toBeNull();
+    });
+
+    it('surfaces a 404 (run not found) unmodified', () => {
+      let body: unknown;
+
+      api.getExceptions(runId, 1, 50).subscribe({
+        next: () => fail('expected the 404 to error'),
+        error: (err) => (body = err.error),
+      });
+
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(
+        { title: 'Resource Not Found', status: 404, detail: `Reconciliation run '${runId}' was not found.` },
+        { status: 404, statusText: 'Not Found' },
+      );
+
+      expect(isProblemDetails(body)).toBeTrue();
+    });
+
+    it('surfaces a 400 unmodified', () => {
+      let body: unknown;
+
+      api.getExceptions(runId, 0, 50).subscribe({
+        next: () => fail('expected the 400 to error'),
+        error: (err) => (body = err.error),
+      });
+
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(
+        { title: 'Bad Request', status: 400, detail: 'pageNumber must be greater than or equal to 1.' },
+        { status: 400, statusText: 'Bad Request' },
+      );
+
+      expect(isProblemDetails(body)).toBeTrue();
+    });
+  });
+
+  describe('getException', () => {
+    const exceptionUrl = `${environment.apiBaseUrl}/reconciliation/exceptions/${exceptionId}`;
+
+    it('GETs the individual-exception URL, which does NOT include runId', () => {
+      api.getException(exceptionId).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url === exceptionUrl && r.method === 'GET');
+      expect(req.request.method).toBe('GET');
+      expect(req.request.url).not.toContain(runId);
+      req.flush(makeExceptionItem());
+    });
+
+    it('maps a real 200 verbatim', () => {
+      const wire = makeExceptionItem({ category: 'MissingRecord', involvedSources: 'Payment' });
+
+      let received: ReconciliationExceptionResponse | undefined;
+      api.getException(exceptionId).subscribe((r) => (received = r));
+
+      httpMock.expectOne((r) => r.url === exceptionUrl).flush(wire);
+
+      expect(received).toEqual(wire);
+    });
+
+    it('surfaces a 404 unmodified', () => {
+      let body: unknown;
+
+      api.getException(exceptionId).subscribe({
+        next: () => fail('expected the 404 to error'),
+        error: (err) => (body = err.error),
+      });
+
+      httpMock.expectOne((r) => r.url === exceptionUrl).flush(
+        {
+          title: 'Resource Not Found',
+          status: 404,
+          detail: `Reconciliation exception '${exceptionId}' was not found.`,
+        },
+        { status: 404, statusText: 'Not Found' },
+      );
+
+      expect(isProblemDetails(body)).toBeTrue();
+    });
+  });
 });

@@ -161,3 +161,49 @@ export interface ReconciliationTransactionDetailResponse {
   banks: SourceTransactionRecordResponse[];
   settlements: SourceTransactionRecordResponse[];
 }
+
+/**
+ * Mirrors FinSight.Domain.Enums.ExceptionCategory exactly. These are NOT
+ * aliases of ReconciliationMatchStatus -- different enum, different names,
+ * even though every exception exists because of a non-Matched result.
+ */
+export type ReconciliationExceptionCategory =
+  | 'AmountMismatch'
+  | 'DateMismatch'
+  | 'MissingRecord'
+  | 'DuplicateRecord'
+  | 'Unresolved';
+
+/**
+ * Mirrors FinSight.Application.DTOs.Reconciliation.ReconciliationExceptionResponse --
+ * the body of both GET /api/reconciliation/runs/{runId}/exceptions (paged
+ * items) and GET /api/reconciliation/exceptions/{exceptionId} (single).
+ *
+ * `discrepancyDetail` is a STRING containing serialized JSON built by
+ * ReconciliationOrchestrator.BuildExceptionDetail -- real, but not a
+ * compiler-enforced contract (the DTO only promises `string`). It is
+ * rendered as pretty-printed JSON with a raw-string fallback, never parsed
+ * into a bespoke structured UI -- see ExceptionDetailPage.
+ *
+ * `involvedSources` is a comma-joined string (e.g. "Payment,Bank"), not an
+ * array on the wire.
+ *
+ * `aiExplanation`/`aiSuggestedCategory`/`aiExplanationGeneratedAt` are real
+ * fields on this response -- modeled here because this is an honest mirror
+ * of what the endpoint returns, not because F8 renders them. They stay
+ * unused until F9.
+ */
+export interface ReconciliationExceptionResponse {
+  exceptionId: string;
+  runId: string;
+  reconciliationResultId: string;
+  transactionReference: string;
+  category: ReconciliationExceptionCategory;
+  involvedSources: string;
+  discrepancyDetail: string;
+  aiExplanation: string | null;
+  aiSuggestedCategory: string | null;
+  aiExplanationGeneratedAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}

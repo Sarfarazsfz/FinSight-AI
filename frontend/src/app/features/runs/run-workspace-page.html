@@ -76,6 +76,14 @@
             View results
           </a>
 
+          <a
+            [routerLink]="['/runs', run()!.runId, 'exceptions']"
+            class="h-9 px-3 inline-flex items-center rounded-md border border-border-strong
+                   text-small font-semibold hover:border-text-faint transition-colors"
+          >
+            View exceptions
+          </a>
+
           @if (run()!.status === 'Running' || run()!.status === 'Pending') {
             <button
               type="button"
