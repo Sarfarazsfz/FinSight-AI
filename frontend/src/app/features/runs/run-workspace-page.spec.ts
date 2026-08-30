@@ -246,4 +246,37 @@ describe('RunWorkspacePage', () => {
 
     expect(el().querySelector('[data-testid="run-refresh"]')).toBeFalsy();
   });
+
+  it('renders the Finance Assistant panel scoped to the current run once loaded, without issuing any request of its own', () => {
+    configure();
+
+    httpMock.expectOne((r) => r.url === runUrl).flush(runDetails());
+    httpMock.expectOne((r) => r.url === batchUrl).flush(batchResponse());
+    fixture.detectChanges();
+
+    const panel = el().querySelector('app-finance-assistant-panel');
+    expect(panel).toBeTruthy();
+    expect(panel!.querySelector('[data-testid="assistant-empty-state"]')).toBeTruthy();
+
+    // The panel itself must not have called the Finance Assistant endpoint
+    // on load -- AI runs only after an explicit user submission.
+    const financeAssistantRequests = httpMock.match(
+      (r) => r.url === `${environment.apiBaseUrl}/finance-assistant/ask`,
+    );
+    expect(financeAssistantRequests.length).toBe(0);
+  });
+
+  it('does not render the Finance Assistant panel while the run is still loading or has failed to load', () => {
+    configure();
+
+    expect(el().querySelector('app-finance-assistant-panel')).toBeFalsy();
+
+    httpMock.expectOne((r) => r.url === runUrl).flush(
+      { title: 'Resource Not Found', status: 404, detail: `Reconciliation run '${runId}' was not found.` },
+      { status: 404, statusText: 'Not Found' },
+    );
+    fixture.detectChanges();
+
+    expect(el().querySelector('app-finance-assistant-panel')).toBeFalsy();
+  });
 });

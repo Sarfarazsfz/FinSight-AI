@@ -3,6 +3,9 @@ import { Injectable, inject } from '@angular/core';
 import type { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type {
+  AiExplanationResponse,
+  FinanceAssistantRequest,
+  FinanceAssistantResponse,
   ReconciliationExceptionResponse,
   ReconciliationResultResponse,
   ReconciliationRunDetailsResponse,
@@ -15,12 +18,12 @@ import type { PagedResponse } from '../models/paged-response.model';
 /**
  * Thin typed wrapper over the reconciliation endpoints this frontend
  * actually consumes: creating a run, reading one back, listing its results,
- * reading one result's source evidence, and listing/reading exceptions.
+ * reading one result's source evidence, listing/reading exceptions, and
+ * requesting an AI explanation for one exception.
  *
- * `summary`, AI explanation and ground-truth verification are all real
- * backend capabilities with no frontend consumer yet -- no method for them
- * exists here. Add each only when the phase that actually builds its
- * screen is being implemented.
+ * `summary` and ground-truth verification are real backend capabilities
+ * with no frontend consumer yet -- no method for them exists here. Add each
+ * only when the phase that actually builds its screen is being implemented.
  */
 @Injectable({ providedIn: 'root' })
 export class ReconciliationApi {
@@ -83,6 +86,36 @@ export class ReconciliationApi {
   getException(exceptionId: string): Observable<ReconciliationExceptionResponse> {
     return this.http.get<ReconciliationExceptionResponse>(
       `${this.baseUrl}/exceptions/${exceptionId}`,
+    );
+  }
+
+  /**
+   * Maps to the backend's GenerateAiExplanation action. No request body --
+   * the backend derives every grounded fact itself from the exception
+   * already persisted. The response is rendered as-is; this method (and
+   * every caller) must never transform, recompute, or validate the
+   * financial content of the result -- it is advisory text only.
+   */
+  generateAiExplanation(exceptionId: string): Observable<AiExplanationResponse> {
+    return this.http.post<AiExplanationResponse>(
+      `${this.baseUrl}/exceptions/${exceptionId}/ai-explanation`,
+      null,
+    );
+  }
+
+  /**
+   * Maps to the backend's Finance Assistant `Ask` action --
+   * `POST /api/finance-assistant/ask`. Not under `/api/reconciliation`, so
+   * this builds its own URL rather than stretching `this.baseUrl`'s scoping
+   * to cover an unrelated backend surface. `runId` must come from the
+   * caller's current route/workspace context -- never invented here or
+   * left for the user to type.
+   */
+  askFinanceAssistant(runId: string, question: string): Observable<FinanceAssistantResponse> {
+    const request: FinanceAssistantRequest = { runId, question };
+    return this.http.post<FinanceAssistantResponse>(
+      `${environment.apiBaseUrl}/finance-assistant/ask`,
+      request,
     );
   }
 }

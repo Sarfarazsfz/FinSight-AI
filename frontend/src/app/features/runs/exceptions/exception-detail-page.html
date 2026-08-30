@@ -101,8 +101,96 @@
           </div>
         </dl>
 
-        <!-- Evidence appears before discrepancy interpretation -- verified backend data
-             outranks anything derived from it, visually and positionally. -->
+        <!-- AI explanation of the verified classification above -- positioned
+             directly below it and before detailed source evidence, per the
+             required hierarchy: (1) verified classification, (2) AI
+             explanation of that classification, (3) detailed source
+             evidence, (4) technical reconciliation evidence. Still fully
+             independent of `state()` (an AI failure/loading never hides,
+             disables, or reloads anything below) and visually subordinate
+             to the verified category/metadata above it. -->
+        <div
+          class="mt-8 border border-border rounded-lg bg-surface-sunken px-6 py-5"
+          data-testid="ai-panel"
+        >
+          <h2 class="text-small font-semibold text-text-muted uppercase tracking-wide">
+            AI explanation
+          </h2>
+
+          @switch (aiState()) {
+            @case ('idle') {
+              <div data-testid="ai-idle" class="mt-3">
+                <p class="text-small text-text-muted max-w-[60ch]">
+                  Optional -- the classification above is already complete without it.
+                </p>
+                <button
+                  type="button"
+                  class="mt-3 h-9 px-3 rounded-md border border-border-strong text-small font-semibold
+                         text-text-muted hover:border-text-faint transition-colors"
+                  data-testid="ai-explain-button"
+                  (click)="requestAiExplanation()"
+                >
+                  Explain this exception
+                </button>
+              </div>
+            }
+            @case ('loading') {
+              <div data-testid="ai-loading" class="mt-3 flex items-center gap-2" aria-live="polite">
+                <span class="block h-4 w-4 rounded-full border-2 border-text-faint border-t-transparent animate-spin"></span>
+                <span class="text-small text-text-muted">Generating explanation…</span>
+              </div>
+            }
+            @case ('loaded') {
+              <div data-testid="ai-loaded" class="mt-3 flex flex-col gap-3">
+                <p class="text-small text-text-muted whitespace-pre-wrap" data-testid="ai-explanation-text">
+                  {{ aiExplanation()!.explanation }}
+                </p>
+
+                @if (aiExplanation()!.suggestedCategory) {
+                  <div
+                    class="inline-flex w-fit items-center gap-1.5 rounded-full border border-dashed
+                           border-border-strong px-2.5 py-0.5 text-meta text-text-muted"
+                    data-testid="ai-suggested-category"
+                  >
+                    <span class="font-semibold">Suggested · not verified:</span>
+                    {{ aiExplanation()!.suggestedCategory }}
+                  </div>
+                }
+
+                <div class="flex flex-wrap gap-x-4 gap-y-1 text-meta text-text-faint">
+                  @if (aiExplanation()!.provider) {
+                    <span data-testid="ai-provider">{{ aiExplanation()!.provider }}</span>
+                  }
+                  @if (aiExplanation()!.generatedAtUtc) {
+                    <span data-testid="ai-generated-at">
+                      {{ aiExplanation()!.generatedAtUtc | date: 'MMM d, y, h:mm a' }}
+                    </span>
+                  }
+                </div>
+              </div>
+            }
+            @case ('error') {
+              <div data-testid="ai-error" class="mt-3 flex flex-col gap-3">
+                <p class="text-small text-text-muted" data-testid="ai-error-message">
+                  {{ aiErrorMessage() }}
+                </p>
+                <button
+                  type="button"
+                  class="h-9 px-3 w-fit rounded-md border border-border-strong text-small font-semibold
+                         text-text-muted hover:border-text-faint transition-colors"
+                  data-testid="ai-retry-button"
+                  (click)="requestAiExplanation()"
+                >
+                  Retry
+                </button>
+              </div>
+            }
+          }
+        </div>
+
+        <!-- Detailed source evidence -- verified backend data, positioned
+             after the AI explanation of the classification but still above
+             the raw technical discrepancy JSON. -->
         @if (evidence()) {
           <div class="mt-8 flex flex-col gap-8">
             <div data-testid="evidence-section-payment">
@@ -214,17 +302,32 @@
 
         <div class="mt-8">
           <h2 id="discrepancy-heading" class="text-h3">Discrepancy detail</h2>
-          <p class="mt-1 text-small text-text-muted max-w-[60ch]">
-            Raw detail recorded by the reconciliation engine for this exception.
+          <p class="mt-1 text-small text-text-faint max-w-[60ch]">
+            Technical reconciliation evidence produced by the deterministic engine.
           </p>
-          <div class="mt-2 overflow-x-auto">
-            <pre
-              aria-labelledby="discrepancy-heading"
-              tabindex="0"
-              class="text-small bg-surface-sunken rounded-md px-4 py-3 whitespace-pre"
-              data-testid="discrepancy-detail"
-            >{{ discrepancyPretty() }}</pre>
-          </div>
+
+          <!-- Native disclosure: keyboard-accessible by default (Enter/Space
+               on the focused summary), exposes expanded/collapsed state to
+               assistive technology natively, and needs no JS or signal.
+               Collapsed by default -- the raw JSON is unchanged, only its
+               default visibility changes. -->
+          <details class="mt-2" data-testid="discrepancy-disclosure">
+            <summary
+              class="w-fit text-small font-semibold text-text-faint cursor-pointer select-none
+                     hover:text-text-muted transition-colors"
+              data-testid="discrepancy-toggle"
+            >
+              Show technical details
+            </summary>
+            <div class="mt-2 overflow-x-auto">
+              <pre
+                aria-labelledby="discrepancy-heading"
+                tabindex="0"
+                class="text-small bg-surface-sunken rounded-md px-4 py-3 whitespace-pre"
+                data-testid="discrepancy-detail"
+              >{{ discrepancyPretty() }}</pre>
+            </div>
+          </details>
         </div>
       }
       @case ('not-found') {

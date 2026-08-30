@@ -19,6 +19,7 @@ import type {
   ReconciliationRunDetailsResponse,
   ReconciliationRunStatus,
 } from '../../core/models/reconciliation.model';
+import { FinanceAssistantPanel } from './finance-assistant/finance-assistant-panel';
 
 type WorkspaceState = 'loading' | 'loaded' | 'not-found' | 'error';
 
@@ -40,7 +41,7 @@ type WorkspaceState = 'loading' | 'loaded' | 'not-found' | 'error';
  */
 @Component({
   selector: 'app-run-workspace-page',
-  imports: [DatePipe, RouterLink],
+  imports: [DatePipe, RouterLink, FinanceAssistantPanel],
   templateUrl: './run-workspace-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

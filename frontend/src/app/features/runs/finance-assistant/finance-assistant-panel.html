@@ -1,0 +1,260 @@
+<section
+  class="mt-10 border border-border rounded-lg bg-surface-sunken px-6 py-5"
+  aria-labelledby="finance-assistant-heading"
+  data-testid="finance-assistant-panel"
+>
+  <div class="flex items-start gap-2">
+    <svg
+      class="mt-0.5 h-4 w-4 shrink-0 text-accent"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        d="M8 0c.3 1.9 1 3.4 2.1 4.6C11.3 5.7 12.8 6.4 14.7 6.7c-1.9.3-3.4 1-4.6 2.1
+           -1.1 1.2-1.8 2.7-2.1 4.6-.3-1.9-1-3.4-2.1-4.6C4.7 7.7 3.2 7 1.3 6.7
+           c1.9-.3 3.4-1 4.6-2.1C7 3.4 7.7 1.9 8 0Z"
+      />
+    </svg>
+    <div>
+      <h2 id="finance-assistant-heading" class="text-h3">Finance Assistant</h2>
+      <p class="mt-0.5 text-small text-text-muted max-w-[60ch]">
+        Ask about this reconciliation run. Answers use verified reconciliation
+        data retrieved through backend tools -- the assistant explains and
+        retrieves, it is never the source of financial truth.
+      </p>
+    </div>
+  </div>
+
+  <p class="sr-only" aria-live="polite">
+    @if (pendingId() !== null) {
+      Checking verified reconciliation data…
+    } @else if (exchanges().length > 0 && exchanges().at(-1)!.status === 'done') {
+      Answer received.
+    } @else if (exchanges().length > 0 && exchanges().at(-1)!.status === 'error') {
+      {{ exchanges().at(-1)!.errorMessage }}
+    }
+  </p>
+
+  @if (isEmpty()) {
+    <div class="mt-5" data-testid="assistant-empty-state">
+      <p class="text-meta uppercase text-text-faint">Suggested questions</p>
+      <div class="mt-2 flex flex-wrap gap-2">
+        @for (suggestion of suggestedQuestions; track suggestion) {
+          <button
+            type="button"
+            class="h-8 px-2.5 rounded-md border border-border-strong text-small
+                   text-text-muted hover:border-text-faint hover:text-text transition-colors"
+            data-testid="suggested-question"
+            (click)="useSuggestedQuestion(suggestion)"
+          >
+            {{ suggestion }}
+          </button>
+        }
+      </div>
+    </div>
+  }
+
+  @if (!isEmpty()) {
+    <div class="mt-5 flex flex-col gap-6" data-testid="assistant-thread">
+      @for (exchange of exchanges(); track exchange.id) {
+        <div class="flex flex-col gap-3" data-testid="assistant-exchange">
+          <!-- User turn -->
+          <div>
+            <p class="text-meta uppercase text-text-faint">You</p>
+            <p class="text-body mt-1" data-testid="assistant-question-text">
+              {{ exchange.question }}
+            </p>
+          </div>
+
+          <!-- Assistant turn -->
+          @switch (exchange.status) {
+            @case ('loading') {
+              <div class="flex items-center gap-2" data-testid="assistant-loading">
+                <span
+                  class="h-1.5 w-1.5 rounded-full bg-text-faint animate-pulse"
+                  aria-hidden="true"
+                ></span>
+                <p class="text-small text-text-muted animate-pulse">
+                  Checking verified reconciliation data…
+                </p>
+              </div>
+            }
+            @case ('done') {
+              <div class="flex flex-col gap-2.5">
+                <p class="text-meta uppercase text-text-faint">Assistant</p>
+
+                <div
+                  data-testid="assistant-answer-text"
+                  [innerHTML]="exchange.renderedAnswerHtml"
+                ></div>
+
+                <!-- Verified-data provenance: the exact tools the backend
+                     reports, never inferred or invented. -->
+                <div>
+                  @if (exchange.response!.toolsUsed.length === 0) {
+                    <p class="text-meta text-text-faint" data-testid="assistant-no-tools">
+                      No backend tools were used for this answer.
+                    </p>
+                  } @else {
+                    <div class="flex flex-col gap-1" data-testid="assistant-tools-used">
+                      <p class="text-meta uppercase text-text-faint">Verified data</p>
+                      <div class="flex flex-wrap gap-1.5">
+                        @for (tool of exchange.response!.toolsUsed; track tool) {
+                          <span
+                            class="inline-flex items-center gap-1 rounded-full border
+                                   border-accent/30 bg-accent-soft px-2 py-0.5 text-meta
+                                   text-accent-strong"
+                            data-testid="assistant-tool-chip"
+                          >
+                            <svg class="h-2.5 w-2.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                              <path
+                                d="M3 8.5 6.5 12 13 4"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                              />
+                            </svg>
+                            {{ tool }}
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <!-- Lightweight metadata + actions -->
+                <div class="flex items-center justify-between gap-3">
+                  <p class="text-meta text-text-faint" data-testid="assistant-metadata">
+                    {{ relativeTime(exchange.askedAt) }}
+                    @if (exchange.response!.traceId) {
+                      <span data-testid="assistant-trace-id"> · Trace: {{ exchange.response!.traceId }}</span>
+                    }
+                  </p>
+
+                  <div class="flex items-center gap-1">
+                    <button
+                      type="button"
+                      class="h-7 px-2 rounded-md text-meta text-text-faint hover:text-text
+                             hover:bg-surface transition-colors"
+                      data-testid="assistant-copy-button"
+                      [attr.aria-label]="'Copy answer'"
+                      (click)="copyAnswer(exchange.id)"
+                    >
+                      {{ copiedExchangeId() === exchange.id ? 'Copied' : 'Copy' }}
+                    </button>
+                    <button
+                      type="button"
+                      class="h-7 w-7 inline-flex items-center justify-center rounded-md
+                             text-text-faint hover:text-text hover:bg-surface transition-colors"
+                      data-testid="assistant-feedback-up"
+                      aria-label="Helpful"
+                      [attr.aria-pressed]="feedbackByExchangeId().get(exchange.id) === 'up'"
+                      [class.text-accent]="feedbackByExchangeId().get(exchange.id) === 'up'"
+                      (click)="toggleFeedback(exchange.id, 'up')"
+                    >
+                      <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <path
+                          d="M2 7h2.5v7H2V7Zm4.5 0 3-6a1.5 1.5 0 0 1 3 1v3.5H12a1.5 1.5 0 0 1 1.46
+                             1.84l-1 4A1.5 1.5 0 0 1 11 12.5H6.5V7Z"
+                          stroke="currentColor"
+                          stroke-width="1.1"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      class="h-7 w-7 inline-flex items-center justify-center rounded-md
+                             text-text-faint hover:text-text hover:bg-surface transition-colors"
+                      data-testid="assistant-feedback-down"
+                      aria-label="Not helpful"
+                      [attr.aria-pressed]="feedbackByExchangeId().get(exchange.id) === 'down'"
+                      [class.text-accent]="feedbackByExchangeId().get(exchange.id) === 'down'"
+                      (click)="toggleFeedback(exchange.id, 'down')"
+                    >
+                      <svg class="h-3.5 w-3.5 rotate-180" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <path
+                          d="M2 7h2.5v7H2V7Zm4.5 0 3-6a1.5 1.5 0 0 1 3 1v3.5H12a1.5 1.5 0 0 1 1.46
+                             1.84l-1 4A1.5 1.5 0 0 1 11 12.5H6.5V7Z"
+                          stroke="currentColor"
+                          stroke-width="1.1"
+                          stroke-linejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            }
+            @case ('error') {
+              <div class="flex flex-col gap-3" data-testid="assistant-error" role="alert">
+                <p class="text-small text-text-muted" data-testid="assistant-error-message">
+                  {{ exchange.errorMessage }}
+                </p>
+                <button
+                  type="button"
+                  class="h-9 px-3 w-fit rounded-md border border-border-strong text-small font-semibold
+                         text-text-muted hover:border-text-faint transition-colors"
+                  data-testid="assistant-retry-button"
+                  (click)="retry(exchange.id)"
+                >
+                  Retry
+                </button>
+              </div>
+            }
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <form
+    (submit)="onSubmit($event)"
+    novalidate
+    class="mt-5 flex flex-col gap-1.5 border-t border-border pt-4"
+  >
+    <div class="flex items-end gap-2">
+      <label for="finance-assistant-question" class="sr-only">
+        Ask anything about this reconciliation run
+      </label>
+      <input
+        id="finance-assistant-question"
+        type="text"
+        placeholder="Ask anything about this reconciliation run..."
+        [value]="questionText()"
+        (input)="onComposerInput($event)"
+        (keydown)="onComposerKeydown($event)"
+        [disabled]="pendingId() !== null"
+        class="h-10 px-3 flex-1 min-w-0 rounded-md border bg-surface text-body
+               border-border-strong hover:border-text-faint
+               focus-visible:border-accent disabled:opacity-55"
+        data-testid="assistant-question-input"
+      />
+      <button
+        type="submit"
+        [disabled]="!canSubmit()"
+        aria-label="Send question"
+        class="h-10 w-10 shrink-0 inline-flex items-center justify-center rounded-md bg-ink
+               text-on-ink hover:bg-ink-strong disabled:opacity-40 disabled:cursor-not-allowed
+               transition-colors"
+        data-testid="assistant-ask-button"
+      >
+        <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path
+            d="M8 13V3M8 3 3.5 7.5M8 3l4.5 4.5"
+            stroke="currentColor"
+            stroke-width="1.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+    </div>
+    <p class="text-meta text-text-faint">
+      AI-generated analysis may contain errors. Verified figures always come from
+      deterministic reconciliation results.
+    </p>
+  </form>
+</section>

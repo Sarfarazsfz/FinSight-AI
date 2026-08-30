@@ -8,6 +8,8 @@ import { ReconciliationApi } from './reconciliation-api.service';
 import { environment } from '../../../environments/environment';
 import { isProblemDetails } from '../models/problem-details.model';
 import type {
+  AiExplanationResponse,
+  FinanceAssistantResponse,
   ReconciliationExceptionResponse,
   ReconciliationResultResponse,
   ReconciliationRunDetailsResponse,
@@ -498,6 +500,220 @@ describe('ReconciliationApi', () => {
       );
 
       expect(isProblemDetails(body)).toBeTrue();
+    });
+  });
+
+  describe('generateAiExplanation', () => {
+    const aiExplanationUrl = `${environment.apiBaseUrl}/reconciliation/exceptions/${exceptionId}/ai-explanation`;
+
+    function makeAiExplanationResponse(
+      overrides: Partial<AiExplanationResponse> = {},
+    ): AiExplanationResponse {
+      return {
+        provider: 'Gemini',
+        explanation: 'The payment and bank amounts differ by INR 10.',
+        suggestedCategory: 'AmountMismatch',
+        generatedAtUtc: '2026-08-29T09:05:00Z',
+        ...overrides,
+      };
+    }
+
+    it('POSTs to the exception-scoped ai-explanation URL', () => {
+      api.generateAiExplanation(exceptionId).subscribe();
+
+      const req = httpMock.expectOne((r) => r.url === aiExplanationUrl && r.method === 'POST');
+      expect(req.request.method).toBe('POST');
+      req.flush(makeAiExplanationResponse());
+    });
+
+    it('maps a real 200 verbatim, including a null suggestedCategory', () => {
+      const wire = makeAiExplanationResponse({ suggestedCategory: null });
+
+      let received: AiExplanationResponse | undefined;
+      api.generateAiExplanation(exceptionId).subscribe((r) => (received = r));
+
+      httpMock.expectOne((r) => r.url === aiExplanationUrl).flush(wire);
+
+      expect(received).toEqual(wire);
+      expect(received!.suggestedCategory).toBeNull();
+    });
+
+    it('surfaces a 400 ProblemDetails unmodified', () => {
+      let body: unknown;
+
+      api.generateAiExplanation(exceptionId).subscribe({
+        next: () => fail('expected the 400 to error'),
+        error: (err) => (body = err.error),
+      });
+
+      httpMock.expectOne((r) => r.url === aiExplanationUrl).flush(
+        { title: 'Bad Request', status: 400, detail: 'A valid exceptionId is required.' },
+        { status: 400, statusText: 'Bad Request' },
+      );
+
+      expect(isProblemDetails(body)).toBeTrue();
+      expect((body as { detail: string }).detail).toBe('A valid exceptionId is required.');
+    });
+
+    it('surfaces a 404 ProblemDetails unmodified', () => {
+      let body: unknown;
+
+      api.generateAiExplanation(exceptionId).subscribe({
+        next: () => fail('expected the 404 to error'),
+        error: (err) => (body = err.error),
+      });
+
+      httpMock.expectOne((r) => r.url === aiExplanationUrl).flush(
+        {
+          title: 'Resource Not Found',
+          status: 404,
+          detail: `Reconciliation exception '${exceptionId}' was not found.`,
+        },
+        { status: 404, statusText: 'Not Found' },
+      );
+
+      expect(isProblemDetails(body)).toBeTrue();
+      expect((body as { detail: string }).detail).toBe(
+        `Reconciliation exception '${exceptionId}' was not found.`,
+      );
+    });
+
+    it('surfaces a 503 ProblemDetails unmodified', () => {
+      let body: unknown;
+      let status: number | undefined;
+
+      api.generateAiExplanation(exceptionId).subscribe({
+        next: () => fail('expected the 503 to error'),
+        error: (err) => {
+          body = err.error;
+          status = err.status;
+        },
+      });
+
+      httpMock.expectOne((r) => r.url === aiExplanationUrl).flush(
+        { title: 'AI Provider Unavailable', status: 503, detail: 'Both AI providers failed.' },
+        { status: 503, statusText: 'Service Unavailable' },
+      );
+
+      expect(status).toBe(503);
+      expect(isProblemDetails(body)).toBeTrue();
+    });
+  });
+
+  describe('askFinanceAssistant', () => {
+    const askUrl = `${environment.apiBaseUrl}/finance-assistant/ask`;
+
+    function makeAssistantResponse(
+      overrides: Partial<FinanceAssistantResponse> = {},
+    ): FinanceAssistantResponse {
+      return {
+        answer: 'The match rate for this run is 91.5%.',
+        toolsUsed: ['getReconciliationSummary'],
+        traceId: null,
+        ...overrides,
+      };
+    }
+
+    it('POSTs to the finance-assistant ask URL', () => {
+      api.askFinanceAssistant(runId, 'What is the match rate?').subscribe();
+
+      const req = httpMock.expectOne((r) => r.url === askUrl && r.method === 'POST');
+      expect(req.request.method).toBe('POST');
+      req.flush(makeAssistantResponse());
+    });
+
+    it('sends exactly { runId, question }, nothing else', () => {
+      api.askFinanceAssistant(runId, 'What is the match rate?').subscribe();
+
+      const req = httpMock.expectOne((r) => r.url === askUrl);
+      expect(req.request.body).toEqual({
+        runId,
+        question: 'What is the match rate?',
+      });
+
+      req.flush(makeAssistantResponse());
+    });
+
+    it('maps a real 200 verbatim, including toolsUsed', () => {
+      const wire = makeAssistantResponse({
+        toolsUsed: ['getReconciliationSummary', 'getUnmatchedRecords'],
+      });
+
+      let received: FinanceAssistantResponse | undefined;
+      api.askFinanceAssistant(runId, 'Summarize this run.').subscribe((r) => (received = r));
+
+      httpMock.expectOne((r) => r.url === askUrl).flush(wire);
+
+      expect(received).toEqual(wire);
+      expect(received!.toolsUsed).toEqual(['getReconciliationSummary', 'getUnmatchedRecords']);
+    });
+
+    it('maps a null traceId verbatim', () => {
+      const wire = makeAssistantResponse({ traceId: null });
+
+      let received: FinanceAssistantResponse | undefined;
+      api.askFinanceAssistant(runId, 'What is the match rate?').subscribe((r) => (received = r));
+
+      httpMock.expectOne((r) => r.url === askUrl).flush(wire);
+
+      expect(received!.traceId).toBeNull();
+    });
+
+    it('maps a non-null traceId verbatim', () => {
+      const wire = makeAssistantResponse({ traceId: 'trace-abc-123' });
+
+      let received: FinanceAssistantResponse | undefined;
+      api.askFinanceAssistant(runId, 'What is the match rate?').subscribe((r) => (received = r));
+
+      httpMock.expectOne((r) => r.url === askUrl).flush(wire);
+
+      expect(received!.traceId).toBe('trace-abc-123');
+    });
+
+    it('surfaces a 400 ProblemDetails unmodified', () => {
+      let body: unknown;
+
+      api.askFinanceAssistant(runId, '').subscribe({
+        next: () => fail('expected the 400 to error'),
+        error: (err) => (body = err.error),
+      });
+
+      httpMock.expectOne((r) => r.url === askUrl).flush(
+        { title: 'Bad Request', status: 400, detail: 'question is required.' },
+        { status: 400, statusText: 'Bad Request' },
+      );
+
+      expect(isProblemDetails(body)).toBeTrue();
+      expect((body as { detail: string }).detail).toBe('question is required.');
+    });
+
+    it('surfaces a 503 ProblemDetails unmodified', () => {
+      let body: unknown;
+      let status: number | undefined;
+
+      api.askFinanceAssistant(runId, 'What is the match rate?').subscribe({
+        next: () => fail('expected the 503 to error'),
+        error: (err) => {
+          body = err.error;
+          status = err.status;
+        },
+      });
+
+      httpMock.expectOne((r) => r.url === askUrl).flush(
+        {
+          title: 'AI Provider Unavailable',
+          status: 503,
+          detail:
+            'Finance Assistant temporarily unavailable. Reconciliation results are unaffected.',
+        },
+        { status: 503, statusText: 'Service Unavailable' },
+      );
+
+      expect(status).toBe(503);
+      expect(isProblemDetails(body)).toBeTrue();
+      expect((body as { detail: string }).detail).toBe(
+        'Finance Assistant temporarily unavailable. Reconciliation results are unaffected.',
+      );
     });
   });
 });

@@ -10,6 +10,7 @@ import { ReplaySubject } from 'rxjs';
 import { ExceptionDetailPage } from './exception-detail-page';
 import { environment } from '../../../../environments/environment';
 import type {
+  AiExplanationResponse,
   ReconciliationExceptionResponse,
   ReconciliationTransactionDetailResponse,
   SourceTransactionRecordResponse,
@@ -33,6 +34,22 @@ describe('ExceptionDetailPage', () => {
 
   function resultDetailUrl(resultId: string): string {
     return `${reconciliationBase}/runs/${runId}/results/${resultId}`;
+  }
+
+  function aiExplanationUrl(id: string): string {
+    return `${reconciliationBase}/exceptions/${id}/ai-explanation`;
+  }
+
+  function aiExplanationResponse(
+    overrides: Partial<AiExplanationResponse> = {},
+  ): AiExplanationResponse {
+    return {
+      provider: 'Gemini',
+      explanation: 'The payment and bank amounts differ by INR 10.',
+      suggestedCategory: 'AmountMismatch',
+      generatedAtUtc: '2026-08-29T09:05:00Z',
+      ...overrides,
+    };
   }
 
   function emitParams(exceptionId: string, page?: number): void {
@@ -228,18 +245,273 @@ describe('ExceptionDetailPage', () => {
     expect(el().querySelectorAll('[data-testid="evidence-row-settlement"]').length).toBe(2);
   });
 
-  it('renders no AI UI at all', () => {
-    configure('e1', 1);
-    httpMock.expectOne((r) => r.url === exceptionUrl('e1')).flush(
-      exceptionItem({ aiExplanation: 'some explanation', aiSuggestedCategory: 'AmountMismatch' }),
-    );
-    httpMock.expectOne((r) => r.url === resultDetailUrl('r1')).flush(evidenceDetail());
-    httpMock.expectOne((r) => r.url === exceptionsUrl).flush(queuePage([exceptionItem()], 1, 1, 1));
-    fixture.detectChanges();
+  describe('AI explanation panel', () => {
+    it('is positioned before the source evidence sections, directly below the verified classification', () => {
+      configure('e1', 1);
+      httpMock.expectOne((r) => r.url === exceptionUrl('e1')).flush(exceptionItem());
+      httpMock.expectOne((r) => r.url === resultDetailUrl('r1')).flush(evidenceDetail());
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(queuePage([exceptionItem()], 1, 1, 1));
+      fixture.detectChanges();
 
-    expect(el().textContent).not.toContain('some explanation');
-    expect(el().textContent!.toLowerCase()).not.toContain('ai explanation');
-    expect(el().textContent!.toLowerCase()).not.toContain('coming soon');
+      const category = el().querySelector('[data-testid="exception-category"]')!;
+      const aiPanel = el().querySelector('[data-testid="ai-panel"]')!;
+      const evidenceSection = el().querySelector('[data-testid="evidence-section-payment"]')!;
+
+      // DOCUMENT_POSITION_FOLLOWING means the argument comes AFTER the node
+      // `compareDocumentPosition` was called on.
+      expect(
+        category.compareDocumentPosition(aiPanel) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        aiPanel.compareDocumentPosition(evidenceSection) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it('starts idle, showing the Explain action and no explanation text', () => {
+      configure('e1', 1);
+      httpMock.expectOne((r) => r.url === exceptionUrl('e1')).flush(exceptionItem());
+      httpMock.expectOne((r) => r.url === resultDetailUrl('r1')).flush(evidenceDetail());
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(queuePage([exceptionItem()], 1, 1, 1));
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="ai-idle"]')).toBeTruthy();
+      expect(el().querySelector('[data-testid="ai-explain-button"]')).toBeTruthy();
+      expect(el().querySelector('[data-testid="ai-loaded"]')).toBeFalsy();
+      expect(el().textContent).not.toContain('The payment and bank amounts differ');
+    });
+
+    it('clicking Explain triggers exactly one POST request and shows the loading state, evidence untouched', () => {
+      configure('e1', 1);
+      httpMock.expectOne((r) => r.url === exceptionUrl('e1')).flush(exceptionItem());
+      httpMock.expectOne((r) => r.url === resultDetailUrl('r1')).flush(evidenceDetail());
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(queuePage([exceptionItem()], 1, 1, 1));
+      fixture.detectChanges();
+
+      el().querySelector<HTMLButtonElement>('[data-testid="ai-explain-button"]')!.click();
+      fixture.detectChanges();
+
+      const requests = httpMock.match((r) => r.url === aiExplanationUrl('e1'));
+      expect(requests.length).toBe(1);
+      expect(requests[0].request.method).toBe('POST');
+
+      expect(el().querySelector('[data-testid="ai-loading"]')).toBeTruthy();
+
+      // Evidence stays fully rendered and untouched while the AI call is
+      // in flight -- the two states are independent.
+      expect(el().querySelectorAll('[data-testid="evidence-row-payment"]').length).toBe(1);
+      expect(el().querySelector('[data-testid="exception-category"]')!.textContent).toContain(
+        'AmountMismatch',
+      );
+
+      requests[0].flush(aiExplanationResponse());
+    });
+
+    it('renders the explanation, a visibly-marked suggested category, provider, and timestamp on success', () => {
+      configure('e1', 1);
+      httpMock.expectOne((r) => r.url === exceptionUrl('e1')).flush(exceptionItem());
+      httpMock.expectOne((r) => r.url === resultDetailUrl('r1')).flush(evidenceDetail());
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(queuePage([exceptionItem()], 1, 1, 1));
+      fixture.detectChanges();
+
+      el().querySelector<HTMLButtonElement>('[data-testid="ai-explain-button"]')!.click();
+      httpMock.expectOne((r) => r.url === aiExplanationUrl('e1')).flush(aiExplanationResponse());
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="ai-explanation-text"]')!.textContent).toContain(
+        'The payment and bank amounts differ by INR 10.',
+      );
+
+      const suggested = el().querySelector('[data-testid="ai-suggested-category"]')!;
+      expect(suggested.textContent).toContain('Suggested');
+      expect(suggested.textContent).toContain('not verified');
+      expect(suggested.textContent).toContain('AmountMismatch');
+
+      // Must never carry the same styling hook as the verified category badge.
+      expect(suggested.getAttribute('data-testid')).not.toBe('exception-category');
+
+      expect(el().querySelector('[data-testid="ai-provider"]')!.textContent).toContain('Gemini');
+      expect(el().querySelector('[data-testid="ai-generated-at"]')).toBeTruthy();
+
+      // The verified category badge is untouched by the AI response.
+      expect(el().querySelector('[data-testid="exception-category"]')!.textContent).toContain(
+        'AmountMismatch',
+      );
+    });
+
+    it('renders a pre-existing aiExplanation on initial load without issuing another AI request', () => {
+      configure('e1', 1);
+      httpMock.expectOne((r) => r.url === exceptionUrl('e1')).flush(
+        exceptionItem({
+          aiExplanation: 'Previously generated explanation.',
+          aiSuggestedCategory: 'AmountMismatch',
+          aiExplanationGeneratedAt: '2026-08-29T09:05:00Z',
+        }),
+      );
+      httpMock.expectOne((r) => r.url === resultDetailUrl('r1')).flush(evidenceDetail());
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(queuePage([exceptionItem()], 1, 1, 1));
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="ai-loaded"]')).toBeTruthy();
+      expect(el().querySelector('[data-testid="ai-explanation-text"]')!.textContent).toContain(
+        'Previously generated explanation.',
+      );
+
+      const requests = httpMock.match((r) => r.url === aiExplanationUrl('e1'));
+      expect(requests.length).toBe(0);
+    });
+
+    it('shows the exact required copy on a 503 and evidence remains intact', () => {
+      configure('e1', 1);
+      httpMock.expectOne((r) => r.url === exceptionUrl('e1')).flush(exceptionItem());
+      httpMock.expectOne((r) => r.url === resultDetailUrl('r1')).flush(evidenceDetail());
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(queuePage([exceptionItem()], 1, 1, 1));
+      fixture.detectChanges();
+
+      el().querySelector<HTMLButtonElement>('[data-testid="ai-explain-button"]')!.click();
+      httpMock.expectOne((r) => r.url === aiExplanationUrl('e1')).flush(
+        { title: 'AI Provider Unavailable', status: 503 },
+        { status: 503, statusText: 'Service Unavailable' },
+      );
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="ai-error-message"]')!.textContent).toContain(
+        'AI explanation unavailable. Reconciliation result is unaffected.',
+      );
+      expect(el().querySelector('[data-testid="ai-retry-button"]')).toBeTruthy();
+
+      expect(el().querySelectorAll('[data-testid="evidence-row-payment"]').length).toBe(1);
+      expect(el().querySelector('[data-testid="exception-category"]')).toBeTruthy();
+    });
+
+    it('does not automatically retry after a 503, and Retry re-issues exactly one new request', () => {
+      configure('e1', 1);
+      httpMock.expectOne((r) => r.url === exceptionUrl('e1')).flush(exceptionItem());
+      httpMock.expectOne((r) => r.url === resultDetailUrl('r1')).flush(evidenceDetail());
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(queuePage([exceptionItem()], 1, 1, 1));
+      fixture.detectChanges();
+
+      el().querySelector<HTMLButtonElement>('[data-testid="ai-explain-button"]')!.click();
+      httpMock.expectOne((r) => r.url === aiExplanationUrl('e1')).flush(
+        { title: 'AI Provider Unavailable', status: 503 },
+        { status: 503, statusText: 'Service Unavailable' },
+      );
+      fixture.detectChanges();
+
+      // No further request appears on its own.
+      expect(httpMock.match((r) => r.url === aiExplanationUrl('e1')).length).toBe(0);
+
+      el().querySelector<HTMLButtonElement>('[data-testid="ai-retry-button"]')!.click();
+
+      const retryRequests = httpMock.match((r) => r.url === aiExplanationUrl('e1'));
+      expect(retryRequests.length).toBe(1);
+      retryRequests[0].flush(aiExplanationResponse());
+    });
+
+    it('shows the backend detail message on a 400, evidence remains intact', () => {
+      configure('e1', 1);
+      httpMock.expectOne((r) => r.url === exceptionUrl('e1')).flush(exceptionItem());
+      httpMock.expectOne((r) => r.url === resultDetailUrl('r1')).flush(evidenceDetail());
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(queuePage([exceptionItem()], 1, 1, 1));
+      fixture.detectChanges();
+
+      el().querySelector<HTMLButtonElement>('[data-testid="ai-explain-button"]')!.click();
+      httpMock.expectOne((r) => r.url === aiExplanationUrl('e1')).flush(
+        { title: 'Bad Request', status: 400, detail: 'A valid exceptionId is required.' },
+        { status: 400, statusText: 'Bad Request' },
+      );
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="ai-error-message"]')!.textContent).toContain(
+        'A valid exceptionId is required.',
+      );
+      expect(el().querySelectorAll('[data-testid="evidence-row-payment"]').length).toBe(1);
+    });
+
+    it('shows the backend detail message on a 404, evidence remains intact', () => {
+      configure('e1', 1);
+      httpMock.expectOne((r) => r.url === exceptionUrl('e1')).flush(exceptionItem());
+      httpMock.expectOne((r) => r.url === resultDetailUrl('r1')).flush(evidenceDetail());
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(queuePage([exceptionItem()], 1, 1, 1));
+      fixture.detectChanges();
+
+      el().querySelector<HTMLButtonElement>('[data-testid="ai-explain-button"]')!.click();
+      httpMock.expectOne((r) => r.url === aiExplanationUrl('e1')).flush(
+        { title: 'Resource Not Found', status: 404, detail: "Reconciliation exception 'e1' was not found." },
+        { status: 404, statusText: 'Not Found' },
+      );
+      fixture.detectChanges();
+
+      expect(el().querySelector('[data-testid="ai-error-message"]')!.textContent).toContain(
+        "Reconciliation exception 'e1' was not found.",
+      );
+      expect(el().querySelectorAll('[data-testid="evidence-row-payment"]').length).toBe(1);
+    });
+  });
+
+  describe('Discrepancy technical details disclosure', () => {
+    it('is collapsed by default', () => {
+      configure('e1', 1);
+      httpMock.expectOne((r) => r.url === exceptionUrl('e1')).flush(exceptionItem());
+      httpMock.expectOne((r) => r.url === resultDetailUrl('r1')).flush(evidenceDetail());
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(queuePage([exceptionItem()], 1, 1, 1));
+      fixture.detectChanges();
+
+      const details = el().querySelector<HTMLDetailsElement>('[data-testid="discrepancy-disclosure"]')!;
+      expect(details.open).toBeFalse();
+    });
+
+    it('reveals the existing raw JSON unchanged when the toggle is clicked', () => {
+      configure('e1', 1);
+      httpMock.expectOne((r) => r.url === exceptionUrl('e1')).flush(
+        exceptionItem({ discrepancyDetail: '{"transaction_reference":"TXN-0001","amount":100}' }),
+      );
+      httpMock.expectOne((r) => r.url === resultDetailUrl('r1')).flush(evidenceDetail());
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(queuePage([exceptionItem()], 1, 1, 1));
+      fixture.detectChanges();
+
+      el().querySelector<HTMLElement>('[data-testid="discrepancy-toggle"]')!.click();
+      fixture.detectChanges();
+
+      const details = el().querySelector<HTMLDetailsElement>('[data-testid="discrepancy-disclosure"]')!;
+      expect(details.open).toBeTrue();
+
+      const pre = el().querySelector('[data-testid="discrepancy-detail"]')!;
+      expect(pre.textContent).toContain('"transaction_reference": "TXN-0001"');
+      expect(pre.textContent).toContain('"amount": 100');
+    });
+
+    it('collapses again when the toggle is clicked a second time', () => {
+      configure('e1', 1);
+      httpMock.expectOne((r) => r.url === exceptionUrl('e1')).flush(exceptionItem());
+      httpMock.expectOne((r) => r.url === resultDetailUrl('r1')).flush(evidenceDetail());
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(queuePage([exceptionItem()], 1, 1, 1));
+      fixture.detectChanges();
+
+      const toggle = el().querySelector<HTMLElement>('[data-testid="discrepancy-toggle"]')!;
+      const details = el().querySelector<HTMLDetailsElement>('[data-testid="discrepancy-disclosure"]')!;
+
+      toggle.click();
+      fixture.detectChanges();
+      expect(details.open).toBeTrue();
+
+      toggle.click();
+      fixture.detectChanges();
+      expect(details.open).toBeFalse();
+    });
+
+    it('is keyboard accessible via a real disclosure control, not a clickable div', () => {
+      configure('e1', 1);
+      httpMock.expectOne((r) => r.url === exceptionUrl('e1')).flush(exceptionItem());
+      httpMock.expectOne((r) => r.url === resultDetailUrl('r1')).flush(evidenceDetail());
+      httpMock.expectOne((r) => r.url === exceptionsUrl).flush(queuePage([exceptionItem()], 1, 1, 1));
+      fixture.detectChanges();
+
+      const details = el().querySelector('[data-testid="discrepancy-disclosure"]')!;
+      const toggle = el().querySelector('[data-testid="discrepancy-toggle"]')!;
+
+      expect(details.tagName).toBe('DETAILS');
+      expect(toggle.tagName).toBe('SUMMARY');
+    });
   });
 
   it('moves to the next sibling within the same held page without an additional queue fetch', () => {

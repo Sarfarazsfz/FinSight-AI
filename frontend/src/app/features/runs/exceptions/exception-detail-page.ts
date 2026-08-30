@@ -14,6 +14,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ReconciliationApi } from '../../../core/api/reconciliation-api.service';
 import { isProblemDetails } from '../../../core/models/problem-details.model';
 import type {
+  AiExplanationResponse,
   ReconciliationExceptionCategory,
   ReconciliationExceptionResponse,
   ReconciliationMatchStatus,
@@ -23,6 +24,25 @@ import type {
 const PAGE_SIZE = 50;
 
 type DetailState = 'loading' | 'loaded' | 'not-found' | 'error';
+
+type AiState = 'idle' | 'loading' | 'loaded' | 'error';
+
+/**
+ * What the AI panel actually renders. Structurally compatible with
+ * `AiExplanationResponse` (a fresh POST result assigns directly), but
+ * `provider` is nullable here because a *pre-existing* explanation --
+ * one already persisted on the exception when the page first loads --
+ * only carries `aiExplanation`/`aiSuggestedCategory`/`aiExplanationGeneratedAt`
+ * on `ReconciliationExceptionResponse`; the backend does not persist which
+ * provider generated it. The panel omits the provider line rather than
+ * inventing a value in that case.
+ */
+interface AiExplanationView {
+  provider: string | null;
+  explanation: string;
+  suggestedCategory: string | null;
+  generatedAtUtc: string;
+}
 
 /**
  * Exception investigation -- fetches the exception itself, its source
@@ -41,8 +61,12 @@ type DetailState = 'loading' | 'loaded' | 'not-found' | 'error';
  * ReconciliationOrchestrator.BuildExceptionDetail) but is not a
  * compiler-enforced contract, so no bespoke structured UI is built for it.
  *
- * No AI UI: `aiExplanation`/`aiSuggestedCategory`/`aiExplanationGeneratedAt`
- * exist on the fetched response and are deliberately never rendered here.
+ * F9: an AI explanation panel renders below the evidence/discrepancy
+ * content, entirely independent of the page's own `state` -- an AI
+ * request, its loading state, or its failure never hides, disables, or
+ * reloads the deterministic evidence above it. If the exception fetched
+ * on load already carries a persisted `aiExplanation`, the panel shows it
+ * immediately without issuing a new AI request.
  */
 @Component({
   selector: 'app-exception-detail-page',
@@ -68,6 +92,11 @@ export class ExceptionDetailPage implements OnInit {
   protected readonly queueItems = signal<ReconciliationExceptionResponse[]>([]);
   protected readonly queueTotalPages = signal(0);
   protected readonly navigatingBoundary = signal(false);
+
+  // Independent of `state` above by design -- see class doc comment.
+  protected readonly aiState = signal<AiState>('idle');
+  protected readonly aiExplanation = signal<AiExplanationView | null>(null);
+  protected readonly aiErrorMessage = signal<string | null>(null);
 
   private readonly resultHeading = viewChild<ElementRef<HTMLElement>>('resultHeading');
   private isFirstLoad = true;
@@ -121,6 +150,34 @@ export class ExceptionDetailPage implements OnInit {
 
   protected retry(): void {
     this.load(this.exceptionId(), this.queuePageNumber());
+  }
+
+  /**
+   * Never fires automatically -- only ever called from the panel's own
+   * button (both the initial "Explain this exception" action and the
+   * 503/error Retry action). Independent of `state`/`retry()` above: an
+   * AI failure only ever affects `aiState`, never the evidence.
+   */
+  protected requestAiExplanation(): void {
+    const exceptionId = this.exceptionId();
+
+    if (!exceptionId || this.aiState() === 'loading') {
+      return;
+    }
+
+    this.aiState.set('loading');
+    this.aiErrorMessage.set(null);
+
+    this.reconciliationApi.generateAiExplanation(exceptionId).subscribe({
+      next: (response: AiExplanationResponse) => {
+        this.aiExplanation.set(response);
+        this.aiState.set('loaded');
+      },
+      error: (error: HttpErrorResponse) => {
+        this.aiErrorMessage.set(ExceptionDetailPage.toAiErrorMessage(error));
+        this.aiState.set('error');
+      },
+    });
   }
 
   protected statusBadgeClasses(status: ReconciliationMatchStatus): string {
@@ -238,11 +295,30 @@ export class ExceptionDetailPage implements OnInit {
     this.exception.set(null);
     this.evidence.set(null);
 
+    // Reset for the new exception -- this component instance is reused
+    // across sibling Previous/Next navigations (see class doc comment),
+    // so a stale AI panel from the previous exception must not persist.
+    this.aiState.set('idle');
+    this.aiExplanation.set(null);
+    this.aiErrorMessage.set(null);
+
     this.reconciliationApi.getException(exceptionId).subscribe({
       next: (exception) => {
         this.exception.set(exception);
         this.discrepancyPretty.set(ExceptionDetailPage.prettyPrint(exception.discrepancyDetail));
         this.loadEvidence(exception);
+
+        if (exception.aiExplanation) {
+          // Already explained in a prior request -- show it directly,
+          // never issue a redundant AI call.
+          this.aiExplanation.set({
+            provider: null,
+            explanation: exception.aiExplanation,
+            suggestedCategory: exception.aiSuggestedCategory,
+            generatedAtUtc: exception.aiExplanationGeneratedAt ?? '',
+          });
+          this.aiState.set('loaded');
+        }
 
         // The component instance is reused across sibling navigations
         // (same route, only :exceptionId changes), so `queueItems` from a
@@ -324,6 +400,31 @@ export class ExceptionDetailPage implements OnInit {
     } catch {
       return raw;
     }
+  }
+
+  /**
+   * 503 gets the exact copy required by docs/design/05-ai-ux.md -- calm,
+   * explicit that the reconciliation result is unaffected. Every other
+   * status surfaces the backend's own ProblemDetails `detail` (matching
+   * the 400/404 messages GenerateAiExplanation actually returns) with a
+   * generic fallback, consistent with `toMessage` below.
+   */
+  private static toAiErrorMessage(error: HttpErrorResponse): string {
+    if (error.status === 503) {
+      return 'AI explanation unavailable. Reconciliation result is unaffected.';
+    }
+
+    if (error.status === 0) {
+      return 'Cannot reach the server. Check that the FinSight API is running and try again.';
+    }
+
+    const detail = isProblemDetails(error.error) ? error.error.detail : undefined;
+
+    if (detail) {
+      return detail;
+    }
+
+    return 'Could not generate an AI explanation. Please try again.';
   }
 
   private static toMessage(error: HttpErrorResponse): string {

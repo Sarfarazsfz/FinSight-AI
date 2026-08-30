@@ -96,6 +96,8 @@
             </button>
           }
         </div>
+
+        <app-finance-assistant-panel [runId]="run()!.runId" />
       }
       @case ('not-found') {
         <div

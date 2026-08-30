@@ -207,3 +207,43 @@ export interface ReconciliationExceptionResponse {
   createdAt: string;
   updatedAt: string | null;
 }
+
+/**
+ * Mirrors FinSight.Application.DTOs.Ai.AiExplanationResponse -- the body of
+ * `POST /api/reconciliation/exceptions/{exceptionId}/ai-explanation`.
+ *
+ * `suggestedCategory` is advisory only (see AiProviderRouter/AiExplanationService
+ * on the backend): it must never be rendered with the same visual weight as
+ * the verified `ReconciliationExceptionResponse.category`, and this frontend
+ * never computes, recomputes, or otherwise treats it as authoritative.
+ */
+export interface AiExplanationResponse {
+  provider: string;
+  explanation: string;
+  suggestedCategory: string | null;
+  generatedAtUtc: string;
+}
+
+/**
+ * Mirrors FinSight.Application.AI.FinanceAssistantRequest -- the body of
+ * `POST /api/finance-assistant/ask`. `runId` always comes from the current
+ * route/workspace context, never from user input.
+ */
+export interface FinanceAssistantRequest {
+  runId: string;
+  question: string;
+}
+
+/**
+ * Mirrors FinSight.Application.AI.FinanceAssistantResponse.
+ *
+ * `toolsUsed` is real backend provenance (which read-only tools the
+ * assistant actually invoked) -- the frontend renders it verbatim and never
+ * infers, reconstructs, or invents tool names. `traceId` is optional
+ * metadata, present only when the backend supplies one.
+ */
+export interface FinanceAssistantResponse {
+  answer: string;
+  toolsUsed: string[];
+  traceId: string | null;
+}
