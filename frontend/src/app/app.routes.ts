@@ -1,16 +1,14 @@
 import type { Routes } from '@angular/router';
-import { inject } from '@angular/core';
-import { Router } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
-import { AuthStore } from './core/state/auth-store';
 
 /**
  * Route table.
  *
- * `/` resolves by session state rather than rendering a landing page: the
- * public marketing surface is a later, separately-scoped phase, and a
- * placeholder in its place would be decorative work with no functional
- * value.
+ * `/` is the public marketing landing page -- no auth, no redirect, no
+ * backend call. It is reachable regardless of session state; an already
+ * signed-in visitor who clicks through to `/login` is bounced straight
+ * back into the app by LoginPage's own ngOnInit check, so nothing about
+ * the authenticated flow changes.
  *
  * No /signup, /forgot-password, /analytics, /admin or /audit route exists.
  * None has a backend capability behind it -- audit in particular has no
@@ -21,17 +19,9 @@ export const routes: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    canActivate: [
-      () => {
-        const router = inject(Router);
-        const authStore = inject(AuthStore);
-
-        return router.createUrlTree([
-          authStore.isAuthenticated() ? '/batches' : '/login',
-        ]);
-      },
-    ],
-    children: [],
+    loadComponent: () =>
+      import('./features/landing/landing-page').then((m) => m.LandingPage),
+    title: 'FinSight AI — AI Finance Controller',
   },
   {
     path: 'login',

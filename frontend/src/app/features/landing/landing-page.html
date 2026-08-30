@@ -1,0 +1,620 @@
+<div
+  class="lp-theme bg-[var(--lp-bg)] text-[var(--lp-text)] min-h-screen selection:bg-[#FAF2E2] selection:text-[#171717]">
+  <a class="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:top-4
+           focus-visible:left-4 focus-visible:z-50 focus-visible:bg-[var(--lp-accent)]
+           focus-visible:text-white focus-visible:px-4 focus-visible:py-2
+           focus-visible:rounded-md focus-visible:font-semibold shadow-md" href="#main-content">
+    Skip to content
+  </a>
+
+  <!-- ================= 1. NAVIGATION ================= -->
+  <header class="sticky top-0 z-30 border-b border-[var(--lp-border)] bg-[#FAF9F6]/95 backdrop-blur-sm transition-all">
+    <nav class="mx-auto max-w-[1240px] px-6 h-14 flex items-center justify-between" aria-label="Primary">
+      <div class="flex items-center gap-3">
+        <a routerLink="/" class="flex items-center gap-1.5 group focus-visible:outline-none whitespace-nowrap"
+          aria-label="FinSight AI Home">
+          <span class="font-sans text-[20px] font-bold tracking-tight text-[var(--lp-ink)]">
+            FinSight
+          </span>
+          <span class="font-sans text-[20px] font-semibold uppercase tracking-wide text-[var(--lp-accent)]">
+            AI
+          </span>
+        </a>
+      </div>
+
+      <div class="hidden md:flex items-center gap-7">
+        @for (link of navLinks; track link.targetId) {
+        <button type="button" (click)="scrollToId(link.targetId)" class="nav-link-item">
+          {{ link.label }}
+        </button>
+        }
+      </div>
+
+      <div class="flex items-center gap-3">
+        <a routerLink="/login" class="btn-primary-amber h-8 px-3.5 text-xs tracking-wide"
+          data-testid="landing-nav-sign-in">
+          Sign in
+        </a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main-content">
+    <!-- ================= 2. HERO (Warm Off-White Light Fintech) ================= -->
+    <section id="hero"
+      class="relative bg-subtle-warm pt-10 pb-12 md:pt-16 md:pb-18 border-b border-[var(--lp-border-subtle)] overflow-hidden"
+      data-testid="landing-hero">
+      <div class="relative mx-auto max-w-[1240px] px-6
+               grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-10 lg:gap-14 items-center">
+        <!-- Left: positioning + message -->
+        <div appRevealOnScroll class="flex flex-col items-start">
+          <div
+            class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF2E2] border border-[#ECD9BA] text-[var(--lp-accent)] text-meta uppercase tracking-[0.08em] font-semibold shadow-2xs">
+            <span class="h-1.5 w-1.5 rounded-full bg-[var(--lp-accent)] animate-pulse"></span>
+            AI Finance Controller
+          </div>
+
+          <h1 class="mt-4 font-sans text-display font-bold tracking-[-0.035em] text-[var(--lp-ink)] leading-[1.06]">
+            Reconcile the books.<br />
+            <span class="text-[var(--lp-accent)]">Understand</span> the exceptions.<br />
+            Verify the cash position.
+          </h1>
+
+          <p class="mt-5 text-body-lg text-[var(--lp-text-muted)] max-w-[52ch] leading-relaxed">
+            FinSight brings <strong class="text-[var(--lp-text)] font-semibold">Payment</strong>, <strong
+              class="text-[var(--lp-text)] font-semibold">Bank</strong>, and <strong
+              class="text-[var(--lp-text)] font-semibold">Settlement</strong> records together, reconciles them
+            deterministically, highlights exceptions, and helps finance teams investigate verified results.
+          </p>
+
+          <div class="mt-8 flex flex-wrap items-center gap-3.5">
+            <a routerLink="/login" class="btn-primary-amber h-11 px-6 text-body" data-testid="landing-hero-sign-in">
+              Sign in
+            </a>
+
+            <button type="button" (click)="scrollToId('workflow')" class="btn-secondary-outline h-11 px-5 text-body"
+              data-testid="landing-see-how-it-works">
+              See how it works
+              <svg class="btn-arrow ml-2 h-4 w-4 text-[var(--lp-text-muted)]" viewBox="0 0 16 16" fill="none"
+                aria-hidden="true">
+                <path d="M8 3v9m0 0-3.5-3.5M8 12l3.5-3.5" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
+          </div>
+
+          <!-- Trust credentials bar -->
+          <div
+            class="mt-8 pt-5 border-t border-[var(--lp-border-subtle)] w-full flex flex-wrap items-center gap-5 text-meta text-[var(--lp-text-muted)]">
+            <div class="flex items-center gap-1.5">
+              <svg class="h-3.5 w-3.5 text-[var(--lp-teal)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M13.333 4 6 11.333 2.667 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+              <span>100% Deterministic Engine</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <svg class="h-3.5 w-3.5 text-[var(--lp-teal)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M13.333 4 6 11.333 2.667 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+              <span>Independent Ground Truth</span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <svg class="h-3.5 w-3.5 text-[var(--lp-teal)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M13.333 4 6 11.333 2.667 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+              <span>Grounded AI Explanations</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Structured Product Reconciliation Visualizer -->
+        <div appRevealOnScroll data-testid="landing-hero-visual" class="w-full">
+          <div class="w-full card-fintech p-6 sm:p-7 relative overflow-hidden">
+            <div class="flex items-center justify-between pb-3.5 border-b border-[var(--lp-border-subtle)]">
+              <div>
+                <p class="text-meta uppercase tracking-wider text-[var(--lp-text-muted)] font-semibold">
+                  Example run
+                </p>
+                <p class="text-small font-semibold text-[var(--lp-ink)]">3-Way Source Alignment</p>
+              </div>
+              <span
+                class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-meta font-medium bg-[#EAF3F0] border-[#C4E3D8] text-[var(--lp-teal)] shadow-2xs">
+                <svg class="h-3 w-3" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M3 8.5 6.5 12 13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+                Verified
+              </span>
+            </div>
+
+            <!-- Three source ledger feeds -->
+            <div class="mt-4 space-y-2">
+              <div
+                class="flex items-center justify-between rounded-md border border-[var(--lp-border)] bg-[#FAF9F6] px-3.5 py-2">
+                <div class="flex items-center gap-2">
+                  <span class="h-1.5 w-1.5 rounded-full bg-[var(--lp-accent)]"></span>
+                  <span class="text-small font-semibold text-[var(--lp-ink)]">Payment</span>
+                  <span
+                    class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-white border border-[var(--lp-border)] text-[var(--lp-text-muted)]">PG-01</span>
+                </div>
+                <span class="text-small tabular font-mono font-medium text-[var(--lp-text)]">&#8377;12,540.00</span>
+              </div>
+
+              <div
+                class="flex items-center justify-between rounded-md border border-[var(--lp-border)] bg-[#FAF9F6] px-3.5 py-2">
+                <div class="flex items-center gap-2">
+                  <span class="h-1.5 w-1.5 rounded-full bg-[var(--lp-accent)]"></span>
+                  <span class="text-small font-semibold text-[var(--lp-ink)]">Bank</span>
+                  <span
+                    class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-white border border-[var(--lp-border)] text-[var(--lp-text-muted)]">STMT-EOD</span>
+                </div>
+                <span class="text-small tabular font-mono font-medium text-[var(--lp-text)]">&#8377;12,540.00</span>
+              </div>
+
+              <div
+                class="flex items-center justify-between rounded-md border border-[var(--lp-border)] bg-[#FAF9F6] px-3.5 py-2">
+                <div class="flex items-center gap-2">
+                  <span class="h-1.5 w-1.5 rounded-full bg-[var(--lp-accent)]"></span>
+                  <span class="text-small font-semibold text-[var(--lp-ink)]">Settlement</span>
+                  <span
+                    class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-white border border-[var(--lp-border)] text-[var(--lp-text-muted)]">SETTL-NODE</span>
+                </div>
+                <span class="text-small tabular font-mono font-medium text-[var(--lp-text)]">&#8377;12,540.00</span>
+              </div>
+            </div>
+
+            <!-- Convergence Flow -->
+            <div class="flex flex-col items-center py-2 text-[var(--lp-accent)]" aria-hidden="true">
+              <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none">
+                <path d="M8 2v10m0 0-3.5-3.5M8 12l3.5-3.5" stroke="currentColor" stroke-width="1.8"
+                  stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </div>
+
+            <!-- Reconciliation Engine Node -->
+            <div
+              class="rounded-md border border-[#C4E3D8] bg-[#EAF3F0] px-3.5 py-2.5 flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <svg class="h-4 w-4 text-[var(--lp-teal)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M2 8a6 6 0 1 1 12 0A6 6 0 0 1 2 8Z" stroke="currentColor" stroke-width="1.8" />
+                  <path d="m6 8 1.5 1.5L10 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+                <span class="text-small font-semibold text-[var(--lp-teal)]">Deterministic Engine</span>
+              </div>
+              <span class="text-small font-bold text-[var(--lp-teal)] uppercase tracking-wide">Matched</span>
+            </div>
+
+            <!-- Summary KPI metrics -->
+            <div class="mt-4 grid grid-cols-3 gap-2.5 border-t border-[var(--lp-border-subtle)] pt-3.5 text-center">
+              <div class="p-2 rounded-md bg-[#FAF9F6] border border-[var(--lp-border-subtle)]">
+                <p class="text-num-lg font-bold text-[var(--lp-accent)] tabular font-mono">97%</p>
+                <p class="text-[10px] uppercase tracking-wider text-[var(--lp-text-muted)] font-semibold mt-0.5">Match
+                  rate</p>
+              </div>
+              <div class="p-2 rounded-md bg-[#FAF9F6] border border-[var(--lp-border-subtle)]">
+                <p class="text-num-lg font-bold text-[var(--lp-ink)] tabular font-mono">100</p>
+                <p class="text-[10px] uppercase tracking-wider text-[var(--lp-text-muted)] font-semibold mt-0.5">Units
+                </p>
+              </div>
+              <div class="p-2 rounded-md bg-[#FAF9F6] border border-[var(--lp-border-subtle)]">
+                <p class="text-num-lg font-bold text-[var(--lp-danger)] tabular font-mono">3</p>
+                <p class="text-[10px] uppercase tracking-wider text-[var(--lp-text-muted)] font-semibold mt-0.5">
+                  Exceptions</p>
+              </div>
+            </div>
+
+            <p class="mt-3 text-[11px] text-[var(--lp-text-muted)] text-center">
+              Illustrative demo data &mdash; not a live reconciliation run.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 3. SIX-STAGE WORKFLOW (Connected Operational Rail) ================= -->
+    <section id="workflow" class="bg-[var(--lp-surface)] py-12 md:py-16 border-b border-[var(--lp-border-subtle)]"
+      data-testid="landing-workflow">
+      <div class="mx-auto max-w-[1240px] px-6" appRevealOnScroll>
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-3 mb-8">
+          <div>
+            <p class="text-meta uppercase tracking-[0.08em] text-[var(--lp-accent)] font-semibold">
+              Operational Lifecycle
+            </p>
+            <h2 class="mt-1.5 font-sans text-h2 md:text-3xl text-[var(--lp-ink)] font-bold tracking-tight">
+              How FinSight closes the reconciliation loop
+            </h2>
+          </div>
+          <p class="text-body text-[var(--lp-text-muted)] max-w-[42ch]">
+            A continuous six-stage deterministic workflow built for accuracy, verification, and auditability.
+          </p>
+        </div>
+
+        <!-- 6-Stage Connected Operational Rail -->
+        <div class="flex flex-col md:flex-row md:items-stretch gap-2 md:gap-0" data-testid="landing-flow-diagram"
+          role="img"
+          aria-label="Upload, Normalize, Reconcile, Verify, Investigate, and Explain -- the six connected stages of the FinSight reconciliation loop.">
+          @for (step of workflowSteps; track step.number; let last = $last) {
+          <div class="flex flex-col md:flex-row md:items-center md:flex-1">
+            <!-- Step Card -->
+            <div class="flex-1 rounded-lg border p-4 flow-node flex flex-col justify-between card-fintech relative"
+              [class.border-[var(--lp-accent)]]="step.status === 'active'"
+              [class.active-stage-pulse]="step.status === 'active'" [class.bg-white]="step.status === 'active'"
+              [class.border-[var(--lp-border)]]="step.status !== 'active'"
+              [class.bg-[#FAF9F6]]="step.status !== 'active'">
+              <div>
+                <div class="flex items-center justify-between">
+                  <span class="text-meta font-mono font-bold text-[var(--lp-accent)] tabular">{{ step.number }}</span>
+                  @if (step.status === 'completed') {
+                  <span class="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--lp-teal)]">
+                    <span class="h-1.5 w-1.5 rounded-full bg-[var(--lp-teal)]"></span>
+                    Done
+                  </span>
+                  } @else if (step.status === 'active') {
+                  <span
+                    class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#FAF2E2] text-[var(--lp-accent)] border border-[#ECD9BA]">Active</span>
+                  } @else {
+                  <span class="h-1.5 w-1.5 rounded-full bg-[var(--lp-border)]"></span>
+                  }
+                </div>
+
+                <!-- Professional Step SVG Icon -->
+                <div class="mt-2.5 flex items-center gap-2">
+                  <div class="h-7 w-7 rounded-md flex items-center justify-center"
+                    [class.bg-[#FAF2E2]]="step.status === 'active'"
+                    [class.text-[var(--lp-accent)]]="step.status === 'active'"
+                    [class.bg-white]="step.status !== 'active'" [class.border]="step.status !== 'active'"
+                    [class.border-[var(--lp-border)]]="step.status !== 'active'"
+                    [class.text-[var(--lp-text-muted)]]="step.status !== 'active'">
+                    @if (step.number === '01') {
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M2.5 11.5v1a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-1M8 2.5v7m0-7L5 5.5m3-3 3 3"
+                        stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    } @else if (step.number === '02') {
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M2.5 4h11M4.5 8h7M6.5 12h3" stroke="currentColor" stroke-width="1.6"
+                        stroke-linecap="round" />
+                    </svg>
+                    } @else if (step.number === '03') {
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M8 2v12M3 5l5-3 5 3M3 11l5 3 5-3" stroke="currentColor" stroke-width="1.6"
+                        stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    } @else if (step.number === '04') {
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M8 1.5 2.5 4v4c0 3.5 2.5 6 5.5 6.5 3-.5 5.5-3 5.5-6.5V4L8 1.5Z" stroke="currentColor"
+                        stroke-width="1.6" stroke-linejoin="round" />
+                      <path d="m6 8 1.5 1.5L10.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                    </svg>
+                    } @else if (step.number === '05') {
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.6" />
+                      <path d="m10.5 10.5 3.5 3.5M7 5v2.5M7 9.5h.01" stroke="currentColor" stroke-width="1.6"
+                        stroke-linecap="round" />
+                    </svg>
+                    } @else {
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M8 1.5v13M1.5 8h13M3.5 3.5l9 9M3.5 12.5l9-9" stroke="currentColor" stroke-width="1.6"
+                        stroke-linecap="round" />
+                    </svg>
+                    }
+                  </div>
+                  <p class="text-small font-bold text-[var(--lp-ink)]">{{ step.title }}</p>
+                </div>
+
+                <p class="mt-1.5 text-meta text-[var(--lp-text-muted)] leading-relaxed">{{ step.description }}</p>
+              </div>
+            </div>
+
+            <!-- Continuous Rail Connector Line -->
+            @if (!last) {
+            <div class="flex items-center justify-center py-1 md:py-0 md:px-1.5 text-[var(--lp-border)]"
+              [class.text-[var(--lp-teal)]]="step.number === '01' || step.number === '02'"
+              [class.text-[var(--lp-accent)]]="step.number === '03'" aria-hidden="true">
+              <div class="h-4 w-0.5 md:h-0.5 md:w-3.5 bg-current rail-connector"></div>
+              <svg class="h-3 w-3 rotate-90 md:rotate-0 -ml-1 text-current hidden md:block" viewBox="0 0 16 16"
+                fill="none">
+                <path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+            </div>
+            }
+          </div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 4. TRUST ARCHITECTURE (Secondary Surface) ================= -->
+    <section id="trust"
+      class="bg-[var(--lp-surface-secondary)] py-14 md:py-18 border-b border-[var(--lp-border-subtle)]"
+      data-testid="landing-trust">
+      <div class="mx-auto max-w-[1240px] px-6" appRevealOnScroll>
+        <div class="max-w-[680px]">
+          <p class="text-meta uppercase tracking-[0.08em] text-[var(--lp-text-muted)] font-semibold">
+            Trust architecture
+          </p>
+          <h2 class="mt-2 font-sans text-h2 md:text-3xl text-[var(--lp-ink)] font-bold tracking-tight">
+            AI is not the financial source of truth
+          </h2>
+          <p class="mt-2.5 text-body-lg text-[var(--lp-text-muted)] leading-relaxed">
+            The deterministic engine decides. Ground truth verifies. AI explains and helps investigate. This explicit
+            hierarchy makes FinSight dependable for regulated financial operations.
+          </p>
+        </div>
+
+        <!-- 3 Tiered Trust Pillars as Unified Hierarchy -->
+        <div class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-5">
+          @for (pillar of trustPillars; track pillar.title) {
+          <div
+            class="rounded-lg border border-[var(--lp-border)] bg-white shadow-xs p-6 border-t-4 flex flex-col justify-between card-fintech"
+            [style.border-top-color]="'var(' + pillar.accentVar + ')'">
+            <div>
+              <p class="text-[10px] font-mono font-bold tracking-wider text-[var(--lp-text-muted)] uppercase">
+                {{ pillar.tier }}
+              </p>
+              <h3 class="mt-1.5 text-h3 font-bold text-[var(--lp-ink)]">{{ pillar.badge }}</h3>
+              <p class="mt-1 text-small font-semibold text-[var(--lp-accent)]">{{ pillar.title }}</p>
+              <p class="mt-2 text-small text-[var(--lp-text-muted)] leading-relaxed">{{ pillar.description }}</p>
+            </div>
+
+            <div
+              class="mt-5 pt-3.5 border-t border-[var(--lp-border-subtle)] flex items-center gap-2 text-meta text-[var(--lp-text-muted)] font-medium">
+              <svg class="h-3.5 w-3.5" [style.color]="'var(' + pillar.accentVar + ')'" viewBox="0 0 16 16" fill="none"
+                aria-hidden="true">
+                <path d="M13.333 4 6 11.333 2.667 8" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                  stroke-linejoin="round" />
+              </svg>
+              <span>{{ pillar.subtitle }}</span>
+            </div>
+          </div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 5. PRODUCT PROOF & FINANCE ASSISTANT PREVIEW (Primary Surface) ================= -->
+    <section class="bg-[var(--lp-surface)] py-14 md:py-18 border-b border-[var(--lp-border-subtle)]"
+      data-testid="landing-preview">
+      <div class="mx-auto max-w-[1240px] px-6" appRevealOnScroll>
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-3 mb-8">
+          <div>
+            <p class="text-meta uppercase tracking-[0.08em] text-[var(--lp-accent)] font-semibold">
+              Product &amp; Intelligence Preview
+            </p>
+            <h2 class="mt-1.5 font-sans text-h2 md:text-3xl text-[var(--lp-ink)] font-bold tracking-tight">
+              See it in action
+            </h2>
+          </div>
+          <p class="text-body text-[var(--lp-text-muted)] max-w-[44ch]">
+            Illustrative demo data below &mdash; not a live reconciliation run. Explore deterministic outputs and
+            grounded AI investigations.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-7 items-start">
+          <!-- Left: Example run + exceptions -->
+          <div id="preview" class="card-fintech p-6 scroll-mt-20" data-testid="landing-example-run">
+            <div
+              class="flex flex-wrap items-center justify-between gap-2 pb-3.5 border-b border-[var(--lp-border-subtle)]">
+              <div>
+                <p class="text-meta uppercase tracking-wider text-[var(--lp-text-muted)] font-semibold">
+                  Example run
+                </p>
+                <p class="text-h3 font-bold text-[var(--lp-ink)]">Batch Run #2026-08</p>
+              </div>
+              <span
+                class="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-0.5 text-meta font-medium bg-[#EAF3F0] border-[#C4E3D8] text-[var(--lp-teal)]">
+                <svg class="h-3 w-3" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M3 8.5 6.5 12 13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                    stroke-linejoin="round" />
+                </svg>
+                Ground truth verified
+              </span>
+            </div>
+
+            <!-- Primary KPIs -->
+            <dl class="mt-4 grid grid-cols-3 gap-3 border-b border-[var(--lp-border-subtle)] pb-4 text-center">
+              <div class="p-2.5 rounded-md bg-[#F5F3EF] border border-[var(--lp-border)]">
+                <dd class="text-num-hero font-bold text-[var(--lp-accent)] tabular font-mono">97%</dd>
+                <dt class="mt-0.5 text-[10px] uppercase tracking-wider text-[var(--lp-text-muted)] font-semibold">Match
+                  rate</dt>
+              </div>
+              <div class="p-2.5 rounded-md bg-[#F5F3EF] border border-[var(--lp-border)]">
+                <dd class="text-num-lg font-bold text-[var(--lp-ink)] tabular font-mono">100</dd>
+                <dt class="mt-0.5 text-[10px] uppercase tracking-wider text-[var(--lp-text-muted)] font-semibold">Units
+                </dt>
+              </div>
+              <div class="p-2.5 rounded-md bg-[#F5F3EF] border border-[var(--lp-border)]">
+                <dd class="text-num-lg font-bold text-[var(--lp-danger)] tabular font-mono">3</dd>
+                <dt class="mt-0.5 text-[10px] uppercase tracking-wider text-[var(--lp-text-muted)] font-semibold">
+                  Exceptions</dt>
+              </div>
+            </dl>
+
+            <!-- Exceptions Badge List -->
+            <div class="mt-4">
+              <div class="flex items-center justify-between">
+                <p class="text-meta uppercase tracking-wider text-[var(--lp-text-muted)] font-semibold">Exceptions</p>
+                <span class="text-meta font-medium text-[var(--lp-danger)]">3 Unmatched</span>
+              </div>
+              <div class="mt-2.5 flex flex-wrap gap-2">
+                @for (txn of exampleExceptions; track txn) {
+                <span class="inline-flex items-center gap-1.5 rounded-md border border-[#E8D8D4] bg-[#FDF5F3]
+                           px-2.5 py-1 text-meta font-mono font-semibold text-[var(--lp-danger)] shadow-2xs">
+                  <span class="h-1.5 w-1.5 rounded-full bg-[var(--lp-danger)]"></span>
+                  {{ txn }}
+                </span>
+                }
+              </div>
+            </div>
+
+            <!-- Deterministic Engine AI Explanation snippet -->
+            <div class="mt-4 rounded-md border border-[var(--lp-border)] bg-[#F5F3EF] p-3.5">
+              <div
+                class="flex items-center gap-1.5 text-meta uppercase tracking-wider text-[var(--lp-text-muted)] font-semibold">
+                <svg class="h-3.5 w-3.5 text-[var(--lp-accent)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+                AI explanation
+              </div>
+              <p class="mt-1 text-small font-medium text-[var(--lp-text)]">
+                Missing bank-side records require review.
+              </p>
+            </div>
+
+            <p class="mt-4 text-[11px] text-[var(--lp-text-muted)]">
+              Illustrative demo data. FinSight compares engine output against an
+              independently generated expected result &mdash; it does not self-report accuracy.
+            </p>
+          </div>
+
+          <!-- Right: Interactive Finance Assistant Preview -->
+          <div id="ai-assistant" class="rounded-lg border border-[var(--lp-border)] bg-[#F5F3EF] p-6
+                   flex flex-col gap-4 scroll-mt-20 shadow-xs" data-testid="landing-ai-preview">
+            <!-- Assistant Header -->
+            <div class="flex items-center justify-between pb-3.5 border-b border-[var(--lp-border-subtle)]">
+              <div class="flex items-center gap-2">
+                <div
+                  class="h-7 w-7 rounded-md bg-white border border-[var(--lp-border)] flex items-center justify-center text-[var(--lp-accent)] shadow-2xs">
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path d="M8 0c.3 1.9 1 3.4 2.1 4.6C11.3 5.7 12.8 6.4 14.7 6.7c-1.9.3-3.4 1-4.6 2.1
+                             -1.1 1.2-1.8 2.7-2.1 4.6-.3-1.9-1-3.4-2.1-4.6C4.7 7.7 3.2 7 1.3 6.7
+                             c1.9-.3 3.4-1 4.6-2.1C7 3.4 7.7 1.9 8 0Z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 class="text-small font-bold text-[var(--lp-ink)]">FinSight Assistant</h3>
+                  <p class="text-[11px] text-[var(--lp-text-muted)]">Ask about this reconciliation run.</p>
+                </div>
+              </div>
+              <span class="text-meta text-[var(--lp-text-muted)] font-medium">&middot; illustration only</span>
+            </div>
+
+            <!-- Suggested Questions Bar -->
+            <div>
+              <p class="text-meta uppercase tracking-wider text-[var(--lp-text-muted)] font-semibold mb-1.5">
+                Suggested questions
+              </p>
+              <div class="flex flex-wrap gap-1.5">
+                @for (q of suggestedQuestions; track q) {
+                <button type="button" (click)="selectQuestion(q)"
+                  class="text-[11px] font-medium px-2.5 py-1 rounded-md border transition-all cursor-pointer text-left"
+                  [class.bg-white]="activeQuestion() === q" [class.border-[var(--lp-accent)]]="activeQuestion() === q"
+                  [class.text-[var(--lp-accent)]]="activeQuestion() === q" [class.shadow-2xs]="activeQuestion() === q"
+                  [class.bg-[#FAF9F6]]="activeQuestion() !== q"
+                  [class.border-[var(--lp-border)]]="activeQuestion() !== q"
+                  [class.text-[var(--lp-text-muted)]]="activeQuestion() !== q"
+                  [class.hover:border-[var(--lp-accent)]]="activeQuestion() !== q">
+                  {{ q }}
+                </button>
+                }
+              </div>
+            </div>
+
+            <!-- Conversational Thread Preview -->
+            <div class="space-y-3 rounded-md bg-white border border-[var(--lp-border)] p-3.5">
+              <!-- User Message -->
+              <div class="flex flex-col items-end">
+                <span
+                  class="text-[10px] uppercase tracking-wider text-[var(--lp-text-muted)] font-semibold mb-1">You</span>
+                <div
+                  class="bg-[#FAF9F6] border border-[var(--lp-border)] rounded-md rounded-tr-none px-3.5 py-2 text-small text-[var(--lp-ink)] max-w-[85%]">
+                  {{ currentSample.question }}
+                </div>
+              </div>
+
+              <!-- Assistant Message -->
+              <div class="flex flex-col items-start">
+                <span
+                  class="text-[10px] uppercase tracking-wider text-[var(--lp-text-muted)] font-semibold mb-1">Assistant</span>
+                <div class="bg-[#FAF9F6] border border-[var(--lp-border)] rounded-md rounded-tl-none p-3.5 w-full">
+                  <p class="text-small font-medium text-[var(--lp-ink)] leading-snug">{{ currentSample.answer }}</p>
+
+                  <!-- Grounded Tool Call Badge -->
+                  <div class="mt-2.5 flex flex-wrap items-center gap-2">
+                    <div
+                      class="inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] font-mono font-medium bg-[#FAF2E2] border-[#ECD9BA] text-[var(--lp-accent)]">
+                      <svg class="h-3 w-3" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <path d="M3 8.5 6.5 12 13 4" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                          stroke-linejoin="round" />
+                      </svg>
+                      {{ currentSample.toolCalled }}
+                    </div>
+
+                    <span class="text-[11px] text-[var(--lp-text-muted)]">Verified run evidence</span>
+                  </div>
+
+                  <div
+                    class="mt-2.5 pt-2.5 border-t border-[var(--lp-border-subtle)] text-[11px] text-[var(--lp-text-muted)]">
+                    <strong class="text-[var(--lp-text)] font-semibold">AI analysis:</strong>
+                    {{ currentSample.verifiedData }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 6. FINAL CTA (Dark Charcoal Surface) ================= -->
+    <section class="bg-[var(--lp-ink)] text-[var(--lp-on-ink)] py-16 md:py-20" data-testid="landing-final-cta">
+      <div class="mx-auto max-w-[1240px] px-6 text-center" appRevealOnScroll>
+        <h2 class="font-sans text-h1 md:text-3xl text-white font-bold tracking-tight">
+          Ready to reconcile?
+        </h2>
+        <p class="mt-3 text-body-lg text-[var(--lp-on-ink-muted)] max-w-[46ch] mx-auto leading-relaxed">
+          Bring your financial sources together and understand what needs attention with deterministic precision and
+          grounded AI.
+        </p>
+        <div class="mt-7 flex justify-center">
+          <a routerLink="/login" class="btn-primary-amber h-11 px-7 text-body shadow-lg hover:shadow-xl"
+            data-testid="landing-final-sign-in">
+            Sign in to FinSight
+          </a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ================= 7. FOOTER (Dark Charcoal Surface) ================= -->
+  <footer class="bg-[var(--lp-ink)] text-[var(--lp-on-ink-muted)] border-t border-white/10"
+    data-testid="landing-footer">
+    <div class="mx-auto max-w-[1240px] px-6 py-10 flex flex-col md:flex-row md:items-center
+             md:justify-between gap-5 text-center md:text-left">
+      <div>
+        <div class="flex items-center justify-center md:justify-start gap-2">
+          <span class="font-sans text-base font-bold text-white tracking-tight">FinSight AI</span>
+          <span class="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-white/10 text-white/70">v1.0</span>
+        </div>
+        <p class="mt-1 text-meta text-[var(--lp-on-ink-muted)]">AI Finance Controller &mdash; Deterministic
+          Reconciliation &amp; Verification</p>
+      </div>
+
+      <div class="flex items-center justify-center md:justify-end gap-6">
+        <button type="button" (click)="scrollToId('preview')"
+          class="text-small hover:text-white transition-colors cursor-pointer">
+          Product
+        </button>
+        <button type="button" (click)="scrollToId('workflow')"
+          class="text-small hover:text-white transition-colors cursor-pointer">
+          How it works
+        </button>
+        <button type="button" (click)="scrollToId('trust')"
+          class="text-small hover:text-white transition-colors cursor-pointer">
+          Trust
+        </button>
+        <a routerLink="/login"
+          class="text-small font-semibold text-[var(--lp-accent)] hover:text-white transition-colors">
+          Sign in
+        </a>
+      </div>
+    </div>
+  </footer>
+</div>
