@@ -1,14 +1,18 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Component } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
 import {
   HttpTestingController,
   provideHttpClientTesting,
 } from '@angular/common/http/testing';
-import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { LoginPage } from './login-page';
 import { AuthStore } from '../../core/state/auth-store';
 import { environment } from '../../../environments/environment';
 import type { LoginResponse } from '../../core/models/auth.model';
+
+@Component({ template: '', selector: 'app-dummy' })
+class DummyComponent {}
 
 const LOGIN_URL = `${environment.apiBaseUrl}/auth/login`;
 
@@ -53,14 +57,11 @@ describe('LoginPage', () => {
       providers: [
         provideHttpClient(),
         provideHttpClientTesting(),
-        {
-          provide: Router,
-          useValue: {
-            url: '/login',
-            navigateByUrl: jasmine.createSpy('navigateByUrl').and.resolveTo(true),
-            navigate: jasmine.createSpy('navigate').and.resolveTo(true),
-          },
-        },
+        provideRouter([
+          { path: '', component: DummyComponent },
+          { path: 'login', component: DummyComponent },
+          { path: 'batches', component: DummyComponent },
+        ]),
         {
           provide: ActivatedRoute,
           useValue: {
@@ -76,7 +77,8 @@ describe('LoginPage', () => {
 
     httpMock = TestBed.inject(HttpTestingController);
     store = TestBed.inject(AuthStore);
-    navigateByUrl = TestBed.inject(Router).navigateByUrl as jasmine.Spy;
+    const router = TestBed.inject(Router);
+    navigateByUrl = spyOn(router, 'navigateByUrl').and.resolveTo(true);
     fixture = TestBed.createComponent(LoginPage);
     fixture.detectChanges();
   }

@@ -7,7 +7,7 @@ import {
 } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import type { HttpErrorResponse } from '@angular/common/http';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthApi } from '../../core/api/auth-api.service';
 import { AuthStore } from '../../core/state/auth-store';
 import { isProblemDetails } from '../../core/models/problem-details.model';
@@ -24,7 +24,7 @@ import { DEFAULT_POST_LOGIN_ROUTE, safeReturnUrl } from '../../core/util/return-
  */
 @Component({
   selector: 'app-login-page',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './login-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

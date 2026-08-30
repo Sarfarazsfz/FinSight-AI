@@ -1,88 +1,163 @@
-<div class="min-h-screen bg-bg text-text flex flex-col">
-  <header class="border-b border-border">
-    <div class="mx-auto w-full max-w-[1180px] px-6 h-16 flex items-center">
-      <span class="text-h3 tracking-tight">FinSight</span>
+<div class="lp-theme bg-[var(--lp-bg)] text-[var(--lp-text)] min-h-screen flex flex-col justify-between selection:bg-[#FAF2E2] selection:text-[#171717] relative overflow-hidden">
+  <!-- Soft Ambient Moving Background Blobs (Extremely Low Contrast) -->
+  <div class="login-ambient-blob-1" aria-hidden="true"></div>
+  <div class="login-ambient-blob-2" aria-hidden="true"></div>
+
+  <!-- Top Navigation Bar -->
+  <header class="border-b border-[var(--lp-border-subtle)] bg-[#FAF9F6]/85 backdrop-blur-xs relative z-10">
+    <div class="mx-auto w-full max-w-[1240px] px-6 h-14 flex items-center justify-between">
+      <a routerLink="/" class="flex items-center gap-1.5 group focus-visible:outline-none whitespace-nowrap" aria-label="FinSight AI Home">
+        <span class="font-sans text-[20px] font-bold tracking-tight text-[var(--lp-ink)]">
+          FinSight
+        </span>
+        <span class="font-sans text-[20px] font-semibold uppercase tracking-wide text-[var(--lp-accent)]">
+          AI
+        </span>
+      </a>
+
+      <a
+        routerLink="/"
+        class="btn-nav-back focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+        data-testid="login-back-home"
+      >
+        <svg class="btn-arrow-back h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M10 12 6 8l4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Back to home
+      </a>
     </div>
   </header>
 
-  <main id="main-content" class="flex-1 flex items-center justify-center px-6 py-12">
-    <div class="w-full max-w-[400px]">
-      <h1 class="text-h1">Sign in</h1>
-      <p class="text-small text-text-muted mt-2">
-        Reconcile a batch, review exceptions and verify results.
-      </p>
-
-      <form
-        class="mt-8 flex flex-col gap-4"
-        [formGroup]="form"
-        (ngSubmit)="submit()"
-        novalidate
-      >
-        <div class="flex flex-col gap-2">
-          <label class="text-small font-semibold" for="email">Email</label>
-          <input
-            id="email"
-            type="email"
-            inputmode="email"
-            autocomplete="email"
-            formControlName="email"
-            class="h-11 px-4 rounded-md border bg-surface text-body
-                   border-border-strong hover:border-text-faint
-                   focus-visible:border-accent
-                   disabled:opacity-55"
-            [class.border-danger]="emailInvalid"
-            [attr.aria-invalid]="emailInvalid"
-            [attr.aria-describedby]="emailInvalid ? 'email-error' : null"
-          />
-          @if (emailInvalid) {
-            <p id="email-error" class="text-small text-danger" role="alert">
-              Enter a valid email address.
-            </p>
-          }
-        </div>
-
-        <div class="flex flex-col gap-2">
-          <label class="text-small font-semibold" for="password">Password</label>
-          <input
-            id="password"
-            type="password"
-            autocomplete="current-password"
-            formControlName="password"
-            class="h-11 px-4 rounded-md border bg-surface text-body
-                   border-border-strong hover:border-text-faint
-                   focus-visible:border-accent
-                   disabled:opacity-55"
-            [class.border-danger]="passwordInvalid"
-            [attr.aria-invalid]="passwordInvalid"
-            [attr.aria-describedby]="passwordInvalid ? 'password-error' : null"
-          />
-          @if (passwordInvalid) {
-            <p id="password-error" class="text-small text-danger" role="alert">
-              Password is required.
-            </p>
-          }
-        </div>
-
-        @if (authError()) {
-          <p
-            data-testid="auth-error"
-            class="text-small text-danger bg-danger-bg rounded-md px-4 py-3"
-            role="alert"
-          >
-            {{ authError() }}
+  <!-- Main Login Workspace -->
+  <main id="main-content" class="flex-1 flex items-center justify-center px-6 py-10 md:py-16 relative z-10">
+    <div class="w-full max-w-[420px]">
+      <!-- Structured Fintech Login Card -->
+      <div class="card-fintech p-7 sm:p-8 bg-white border border-[var(--lp-border)] rounded-xl shadow-xs">
+        <div class="mb-6">
+          <h1 class="font-sans text-2xl font-bold tracking-tight text-[var(--lp-ink)]">
+            Sign in
+          </h1>
+          <p class="text-small text-[var(--lp-text-muted)] mt-1.5 leading-relaxed">
+            Reconcile a batch, review exceptions, and verify results.
           </p>
-        }
+        </div>
 
-        <button
-          type="submit"
-          class="h-11 mt-2 rounded-md bg-ink text-on-ink text-small font-semibold
-                 hover:bg-ink-strong disabled:opacity-55 disabled:cursor-not-allowed
-                 transition-colors"
-          [disabled]="isSubmitting()"
+        <form
+          class="flex flex-col gap-4.5"
+          [formGroup]="form"
+          (ngSubmit)="submit()"
+          novalidate
         >
-          {{ isSubmitting() ? 'Signing in…' : 'Sign in' }}
-        </button>
-      </form>
+          <!-- Email Field -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-small font-semibold text-[var(--lp-ink)]" for="email">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              inputmode="email"
+              autocomplete="email"
+              formControlName="email"
+              placeholder="name@company.com"
+              class="h-11 px-3.5 rounded-lg border bg-[#FAF9F6] text-[var(--lp-text)] text-body
+                     border-[var(--lp-border)] hover:border-[#8A8780]
+                     focus-visible:outline-none focus-visible:bg-white focus-visible:border-[var(--lp-accent)] focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]/15
+                     transition-all disabled:opacity-55"
+              [class.border-danger]="emailInvalid"
+              [attr.aria-invalid]="emailInvalid"
+              [attr.aria-describedby]="emailInvalid ? 'email-error' : null"
+            />
+            @if (emailInvalid) {
+              <p id="email-error" class="text-small font-medium text-[var(--lp-danger)] flex items-center gap-1.5 mt-0.5" role="alert">
+                <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.6"/>
+                  <path d="M8 5v3.5M8 11h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                </svg>
+                Enter a valid email address.
+              </p>
+            }
+          </div>
+
+          <!-- Password Field -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-small font-semibold text-[var(--lp-ink)]" for="password">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              autocomplete="current-password"
+              formControlName="password"
+              placeholder="••••••••"
+              class="h-11 px-3.5 rounded-lg border bg-[#FAF9F6] text-[var(--lp-text)] text-body
+                     border-[var(--lp-border)] hover:border-[#8A8780]
+                     focus-visible:outline-none focus-visible:bg-white focus-visible:border-[var(--lp-accent)] focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]/15
+                     transition-all disabled:opacity-55"
+              [class.border-danger]="passwordInvalid"
+              [attr.aria-invalid]="passwordInvalid"
+              [attr.aria-describedby]="passwordInvalid ? 'password-error' : null"
+            />
+            @if (passwordInvalid) {
+              <p id="password-error" class="text-small font-medium text-[var(--lp-danger)] flex items-center gap-1.5 mt-0.5" role="alert">
+                <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.6"/>
+                  <path d="M8 5v3.5M8 11h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                </svg>
+                Password is required.
+              </p>
+            }
+          </div>
+
+          <!-- Auth Server / Credential Error Alert -->
+          @if (authError()) {
+            <div
+              data-testid="auth-error"
+              class="text-small font-medium text-[var(--lp-danger)] bg-[#FDF5F3] border border-[#E8D8D4] rounded-lg px-3.5 py-3 flex items-start gap-2"
+              role="alert"
+            >
+              <svg class="h-4 w-4 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M8 5v3.5M8 11h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+              <span>{{ authError() }}</span>
+            </div>
+          }
+
+          <!-- Submit Button (Amber CTA) -->
+          <button
+            type="submit"
+            class="btn-primary-amber h-11 mt-2 text-body font-semibold flex items-center justify-center shadow-xs cursor-pointer"
+            [disabled]="isSubmitting()"
+          >
+            @if (isSubmitting()) {
+              <span class="inline-flex items-center gap-2">
+                <svg class="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Signing in…
+              </span>
+            } @else {
+              Sign in
+            }
+          </button>
+        </form>
+      </div>
+
+      <!-- Trust Assurance Footnote -->
+      <div class="mt-6 text-center text-meta text-[var(--lp-text-faint)] flex items-center justify-center gap-1.5">
+        <svg class="h-3.5 w-3.5 text-[var(--lp-teal)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 1.5 2.5 4v4c0 3.5 2.5 6 5.5 6.5 3-.5 5.5-3 5.5-6.5V4L8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+          <path d="m6 8 1.5 1.5L10.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span>Deterministic Reconciliation Engine &bull; Ground Truth Verified</span>
+      </div>
     </div>
   </main>
+
+  <!-- Clean Minimal Footer -->
+  <footer class="border-t border-[var(--lp-border-subtle)] py-4 text-center text-meta text-[var(--lp-text-muted)]">
+    <p>FinSight AI &mdash; AI Finance Controller</p>
+  </footer>
 </div>
