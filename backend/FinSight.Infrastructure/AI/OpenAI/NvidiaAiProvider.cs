@@ -1,50 +1,72 @@
-﻿using System.ClientModel;
+using System.ClientModel;
 using System.Text.Json;
 using FinSight.Application.Abstractions.Services;
 using FinSight.Application.DTOs.Ai;
+using OpenAI;
 using OpenAI.Chat;
 
 namespace FinSight.Infrastructure.AI.OpenAI;
 
-public sealed class OpenAiProvider : IOpenAiProvider
+/// <summary>
+/// F9 exception-explanation adapter for NVIDIA's hosted, OpenAI-compatible
+/// Chat Completions endpoint -- mirrors OpenAiProvider's exact request/
+/// response shape (single JSON-schema-constrained call, no tools, same
+/// AiExplanationRequest/Response contract) so F9's structured explanation
+/// behavior is identical regardless of which provider answers.
+///
+/// Deliberately LAZY validation (unlike GeminiAiProvider/OpenAiProvider,
+/// which throw eagerly in their constructors): NVIDIA is an optional
+/// third provider, and AiProviderRouter's chain uses IsAvailable as a
+/// preflight to skip an unconfigured provider without ever calling it.
+/// An eager throw here would make NVIDIA configuration mandatory for
+/// every deployment, breaking existing Gemini+OpenAI-only setups the
+/// moment this class is constructed at DI-resolution time.
+/// </summary>
+public sealed class NvidiaAiProvider : INvidiaAiProvider
 {
     private readonly string _apiKey;
     private readonly string _model;
+    private readonly string _baseUrl;
     private readonly Lazy<ChatClient?> _client;
 
-    // Deliberately LAZY validation -- see GeminiAiProvider's identical
-    // doc comment (Global AI Provider DI Resolution fix): OpenAI is one
-    // of potentially several configured providers in AiProviderOptions.
-    // ExceptionExplanation.ProviderOrder, and must not be required to be
-    // configured merely because it's registered in DI.
-    public OpenAiProvider(
+    public NvidiaAiProvider(
         string apiKey,
-        string model)
+        string model,
+        string baseUrl)
     {
         _apiKey = apiKey ?? string.Empty;
         _model = model ?? string.Empty;
+        _baseUrl = baseUrl ?? string.Empty;
 
         _client =
             new Lazy<ChatClient?>(
                 () =>
-                    IsConfigured()
-                        ? new ChatClient(
-                            _model,
-                            new ApiKeyCredential(_apiKey))
-                        : null);
+                {
+                    if (!IsConfigured(out var endpoint))
+                    {
+                        return null;
+                    }
+
+                    return new ChatClient(
+                        _model,
+                        new ApiKeyCredential(_apiKey),
+                        new OpenAIClientOptions { Endpoint = endpoint });
+                });
     }
 
-    public string ProviderName => "OpenAI";
+    public string ProviderName => "NVIDIA";
 
     /// <summary>
-    /// Real, computed configuredness (was hardcoded `true`).
+    /// Real, computed configuredness (unlike Gemini/OpenAI's hardcoded
+    /// `true`) -- this is what lets AiProviderRouter's chain exclude an
+    /// unconfigured NVIDIA from the effective chain without ever
+    /// attempting a call.
     /// </summary>
-    public bool IsAvailable => IsConfigured();
+    public bool IsAvailable => IsConfigured(out _);
 
-    public async Task<AiExplanationResponse>
-        GenerateExplanationAsync(
-            AiExplanationRequest request,
-            CancellationToken cancellationToken = default)
+    public async Task<AiExplanationResponse> GenerateExplanationAsync(
+        AiExplanationRequest request,
+        CancellationToken cancellationToken = default)
     {
         if (request is null)
         {
@@ -56,19 +78,13 @@ public sealed class OpenAiProvider : IOpenAiProvider
         if (client is null)
         {
             throw new InvalidOperationException(
-                "OpenAI AI provider is not configured.");
+                "NVIDIA AI provider is not configured.");
         }
 
         var prompt = BuildPrompt(request);
 
         var messages = new List<ChatMessage>
         {
-            new SystemChatMessage(
-                "You are a financial reconciliation explanation assistant. " +
-                "The deterministic reconciliation engine is authoritative. " +
-                "Never override its category. " +
-                "Use only the supplied facts."),
-
             new UserChatMessage(prompt)
         };
 
@@ -120,11 +136,11 @@ public sealed class OpenAiProvider : IOpenAiProvider
         if (string.IsNullOrWhiteSpace(text))
         {
             throw new InvalidOperationException(
-                "OpenAI returned an empty response.");
+                "NVIDIA returned an empty response.");
         }
 
         var parsed =
-            JsonSerializer.Deserialize<OpenAiResult>(
+            JsonSerializer.Deserialize<NvidiaResult>(
                 text,
                 new JsonSerializerOptions
                 {
@@ -132,41 +148,50 @@ public sealed class OpenAiProvider : IOpenAiProvider
                 });
 
         if (parsed is null ||
-            string.IsNullOrWhiteSpace(
-                parsed.Explanation))
+            string.IsNullOrWhiteSpace(parsed.Explanation))
         {
             throw new InvalidOperationException(
-                "OpenAI returned an invalid explanation response.");
+                "NVIDIA returned an invalid explanation response.");
         }
 
         return new AiExplanationResponse
         {
             Provider = ProviderName,
 
-            Explanation =
-                parsed.Explanation.Trim(),
+            Explanation = parsed.Explanation.Trim(),
 
             SuggestedCategory =
-                string.IsNullOrWhiteSpace(
-                    parsed.SuggestedCategory)
+                string.IsNullOrWhiteSpace(parsed.SuggestedCategory)
                     ? null
                     : parsed.SuggestedCategory.Trim(),
 
-            GeneratedAtUtc =
-                DateTime.UtcNow
+            GeneratedAtUtc = DateTime.UtcNow
         };
     }
 
-    private bool IsConfigured()
+    private bool IsConfigured(out Uri? endpoint)
     {
-        return !string.IsNullOrWhiteSpace(_apiKey) &&
-               !string.IsNullOrWhiteSpace(_model);
+        endpoint = null;
+
+        if (string.IsNullOrWhiteSpace(_apiKey) ||
+            string.IsNullOrWhiteSpace(_model) ||
+            string.IsNullOrWhiteSpace(_baseUrl))
+        {
+            return false;
+        }
+
+        return Uri.TryCreate(_baseUrl, UriKind.Absolute, out endpoint);
     }
 
-    private static string BuildPrompt(
-        AiExplanationRequest request)
+    private static string BuildPrompt(AiExplanationRequest request)
     {
         return $"""
+You are a financial reconciliation explanation assistant.
+
+The deterministic reconciliation engine is authoritative.
+Never override its category.
+Use only the supplied facts.
+
 Transaction reference:
 {request.TransactionReference}
 
@@ -187,10 +212,9 @@ Return only the requested structured result.
 """;
     }
 
-    private sealed class OpenAiResult
+    private sealed class NvidiaResult
     {
-        public string Explanation { get; init; }
-            = string.Empty;
+        public string Explanation { get; init; } = string.Empty;
 
         public string? SuggestedCategory { get; init; }
     }

@@ -35,12 +35,17 @@ public sealed class PostgresIntegrationFixture
             "ConnectionStrings:FinSightDb"] =
             connectionString;
 
+        // Global AI Provider Architecture Refactor moved provider
+        // credentials from AI:Gemini:*/AI:OpenAI:*/AI:Nvidia:* to
+        // AI:Providers:Gemini:*/etc. -- these must track that shape or
+        // DI resolves Gemini as unconfigured, breaking every DB-backed
+        // test that expects the default Gemini-first behavior.
         configuration[
-            "AI:Gemini:ApiKey"] =
+            "AI:Providers:Gemini:ApiKey"] =
             "test-gemini-api-key";
 
         configuration[
-            "AI:Gemini:Model"] =
+            "AI:Providers:Gemini:Model"] =
             "gemini-2.5-flash";
 
         var services =

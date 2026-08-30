@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics;
+using System.Text.Json;
 using FinSight.Application.Abstractions.Persistence;
 using FinSight.Application.Abstractions.Reconciliation;
 using FinSight.Application.Abstractions.Services;
@@ -83,6 +84,14 @@ public sealed class ReconciliationOrchestrator : IReconciliationService
                 "Batch ID is required.",
                 nameof(request));
         }
+
+        // Phase 9: additive wall-clock timing only -- this measures the
+        // reconciliation execution itself (batch lookup through the full
+        // matching/classification loop and in-memory persistence staging).
+        // It never alters, and is never used by, any matching, tolerance,
+        // or classification decision. Started only once the request has
+        // passed validation, since a validation failure isn't "execution."
+        var stopwatch = Stopwatch.StartNew();
 
         var batch =
             await _batchRepository.GetByIdAsync(
@@ -457,6 +466,21 @@ public sealed class ReconciliationOrchestrator : IReconciliationService
                     cancellationToken);
             }
 
+            stopwatch.Stop();
+
+            var elapsedSeconds =
+                stopwatch.Elapsed.TotalSeconds;
+
+            // Guarded against a zero-duration edge case: dividing by a
+            // positive elapsed time is the exact totalUnits/duration.TotalSeconds
+            // formula; a defensive zero-duration fallback avoids ever
+            // serializing a non-finite (Infinity/NaN) value, which
+            // System.Text.Json cannot represent as JSON.
+            var recordsPerSecond =
+                elapsedSeconds > 0
+                    ? totalUnits / elapsedSeconds
+                    : 0d;
+
             var completedPayload =
                 JsonSerializer.Serialize(
                     new
@@ -470,7 +494,9 @@ public sealed class ReconciliationOrchestrator : IReconciliationService
                         missing = missingCount,
                         duplicate = duplicateCount,
                         unresolved = unresolvedCount,
-                        match_rate = matchRate
+                        match_rate = matchRate,
+                        duration_ms = stopwatch.ElapsedMilliseconds,
+                        records_per_second = recordsPerSecond
                     });
 
             await _auditLogWriter.AddAsync(

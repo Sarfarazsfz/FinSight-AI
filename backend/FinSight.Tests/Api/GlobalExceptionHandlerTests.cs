@@ -1,6 +1,8 @@
+using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using FinSight.Application.Abstractions.Persistence;
+using FinSight.Application.AI;
 using FinSight.Application.Exceptions;
 using FinSight.Domain.Entities;
 using Microsoft.AspNetCore.Authentication;
@@ -172,6 +174,78 @@ public sealed class GlobalExceptionHandlerTests
         });
     }
 
+    [Test]
+    public async Task FinanceAssistantProviderUnavailableException_Returns503WithCalmMessage()
+    {
+        using var factory =
+            new WebApplicationFactory<Program>()
+                .WithWebHostBuilder(builder =>
+                {
+                    builder.ConfigureServices(services =>
+                    {
+                        services
+                            .AddAuthentication("Test")
+                            .AddScheme<
+                                AuthenticationSchemeOptions,
+                                TestAuthenticationHandler>(
+                                "Test",
+                                _ => { });
+
+                        services.AddScoped<
+                            IFinanceAssistantService,
+                            ThrowingFinanceAssistantService>();
+                    });
+                });
+
+        using var client =
+            factory.CreateClient();
+
+        using var response =
+            await client.PostAsJsonAsync(
+                "/api/finance-assistant/ask",
+                new
+                {
+                    runId = Guid.NewGuid(),
+                    question = "What is the match rate for this run?"
+                });
+
+        var body =
+            await response.Content.ReadAsStringAsync();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                response.StatusCode,
+                Is.EqualTo(
+                    System.Net.HttpStatusCode.ServiceUnavailable));
+
+            Assert.That(
+                response.Content.Headers.ContentType?.MediaType,
+                Is.EqualTo("application/problem+json"));
+
+            Assert.That(
+                body,
+                Does.Contain("\"status\":503"));
+
+            // The required calm, user-facing message -- present in the
+            // response body, not left for a not-yet-built frontend to
+            // hardcode.
+            Assert.That(
+                body,
+                Does.Contain(
+                    "Finance Assistant temporarily unavailable. " +
+                    "Reconciliation results are unaffected."));
+
+            Assert.That(
+                body,
+                Does.Not.Contain("Both Finance Assistant AI providers failed"));
+
+            Assert.That(
+                body,
+                Does.Not.Contain("API key"));
+        });
+    }
+
     private sealed class TestAuthenticationHandler
         : AuthenticationHandler<AuthenticationSchemeOptions>
     {
@@ -269,6 +343,18 @@ public sealed class GlobalExceptionHandlerTests
                 CancellationToken cancellationToken = default)
         {
             throw new NotSupportedException();
+        }
+    }
+
+    private sealed class ThrowingFinanceAssistantService
+        : IFinanceAssistantService
+    {
+        public Task<FinanceAssistantResponse> AskAsync(
+            FinanceAssistantRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            throw new FinanceAssistantProviderUnavailableException(
+                "Both Finance Assistant AI providers failed.");
         }
     }
 }

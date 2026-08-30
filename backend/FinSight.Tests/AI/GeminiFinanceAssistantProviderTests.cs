@@ -112,8 +112,18 @@ public sealed class GeminiFinanceAssistantProviderTests
     }
 
     [Test]
-    public async Task AskAsync_WithPreviousToolResults_SendsThreeConversationTurns()
+    public async Task AskAsync_DuringFinalSynthesis_SendsOnlyOneCleanUserTurn_NoConversationReplay()
     {
+        // Regression test for the live second-question bug: this used to
+        // assert a 3-turn replay (user + model/functionCall +
+        // user/functionResponse). That replay is exactly what a live run
+        // proved still prompted Gemini to continue calling tools even with
+        // FunctionCallingConfigMode.None set. FinanceAssistantService
+        // already flattens the tool result into the text passed as
+        // `Question` -- the provider must not additionally reconstruct a
+        // native function-call/function-response conversation on top of
+        // it. Exactly one turn, and no FunctionCall/FunctionResponse part
+        // anywhere, proves that.
         var runId = Guid.NewGuid();
 
         var fakeClient =
@@ -152,13 +162,25 @@ public sealed class GeminiFinanceAssistantProviderTests
                     """{"matched":95,"mismatched":5}"""
             };
 
+        // Mirrors what FinanceAssistantService actually sends as
+        // `Question` for the final call: the original question plus the
+        // tool result already flattened into text.
+        var flattenedQuestion =
+            """
+            User question:
+            Summarize the reconciliation.
+
+            Use ONLY the following authoritative backend evidence:
+            [{"tool":"getReconciliationSummary","success":true,"result":"{\"matched\":95,\"mismatched\":5}","errorCode":null}]
+            """;
+
         var response =
             await provider.AskAsync(
                 new FinanceAssistantProviderRequest
                 {
                     RunId = runId,
-                    Question =
-                        "Summarize the reconciliation.",
+                    Question = flattenedQuestion,
+                    Tools = Array.Empty<FinanceToolDefinition>(),
                     PreviousToolCalls =
                         new[]
                         {
@@ -171,80 +193,231 @@ public sealed class GeminiFinanceAssistantProviderTests
                         }
                 });
 
-        Assert.That(
-            response.Answer,
-            Is.EqualTo(
-                "The reconciliation has 95 matched records."));
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                response.Answer,
+                Is.EqualTo(
+                    "The reconciliation has 95 matched records."));
 
-        Assert.That(
-            fakeClient.LastContents,
-            Has.Count.EqualTo(3));
+            Assert.That(
+                response.RequiresToolExecution,
+                Is.False);
 
-        Assert.That(
-            fakeClient.LastContents,
-            Has.Count.EqualTo(3));
+            // Exactly one turn -- no replayed model/functionCall or
+            // user/functionResponse turns.
+            Assert.That(
+                fakeClient.LastContents,
+                Has.Count.EqualTo(1));
 
-        var initialContent =
-            fakeClient.LastContents[0];
+            var onlyContent =
+                fakeClient.LastContents[0];
 
-        var modelContent =
-            fakeClient.LastContents[1];
+            Assert.That(onlyContent.Role, Is.EqualTo("user"));
 
-        var toolResultContent =
-            fakeClient.LastContents[2];
+            // No part anywhere in the sent contents represents a
+            // function call or function response -- the model receives
+            // the grounded evidence as plain text only.
+            var allParts =
+                fakeClient.LastContents
+                    .SelectMany(c => c.Parts ?? new List<Part>())
+                    .ToList();
 
-        Assert.That(
-            modelContent.Parts,
-            Is.Not.Null);
+            Assert.That(
+                allParts.All(p => p.FunctionCall is null),
+                Is.True);
 
-        Assert.That(
-            toolResultContent.Parts,
-            Is.Not.Null);
+            Assert.That(
+                allParts.All(p => p.FunctionResponse is null),
+                Is.True);
 
-        var modelPart =
-            modelContent.Parts!.Single();
+            // The flattened evidence text actually reached the model.
+            Assert.That(
+                onlyContent.Parts!.Single().Text,
+                Does.Contain("Summarize the reconciliation."));
 
-        var toolResultPart =
-            toolResultContent.Parts!.Single();
+            Assert.That(
+                onlyContent.Parts!.Single().Text,
+                Does.Contain("matched"));
+        });
+    }
+
+    [Test]
+    public async Task AskAsync_WithToolsDeclared_SendsFunctionDeclarationsInValidatedMode()
+    {
+        var fakeClient =
+            new FakeFinanceAssistantModelClient(
+                CreateTextResponse("unused"));
+
+        var provider =
+            new GeminiFinanceAssistantProvider(
+                fakeClient,
+                "gemini-2.5-flash");
+
+        await provider.AskAsync(
+            new FinanceAssistantProviderRequest
+            {
+                RunId = Guid.NewGuid(),
+                Question = "Summarize this run.",
+                Tools = new[]
+                {
+                    new FinanceToolDefinition
+                    {
+                        Name = "getReconciliationSummary",
+                        Description = "Returns the authoritative summary of a run.",
+                        Parameters = new Dictionary<string, FinanceToolParameter>
+                        {
+                            ["runId"] = new()
+                            {
+                                Type = "string",
+                                Description = "Reconciliation run GUID.",
+                                Required = true
+                            }
+                        }
+                    }
+                }
+            });
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(fakeClient.LastConfig.Tools, Is.Not.Null);
+            Assert.That(fakeClient.LastConfig.Tools!, Has.Count.EqualTo(1));
+
+            var declaration =
+                fakeClient.LastConfig.Tools![0].FunctionDeclarations!.Single();
+
+            Assert.That(declaration.Name, Is.EqualTo("getReconciliationSummary"));
+
+            Assert.That(
+                fakeClient.LastConfig.ToolConfig,
+                Is.Not.Null);
+
+            Assert.That(
+                fakeClient.LastConfig.ToolConfig!.FunctionCallingConfig!.Mode,
+                Is.EqualTo(FunctionCallingConfigMode.Validated));
+        });
+    }
+
+    [Test]
+    public async Task AskAsync_DuringFinalSynthesis_ExplicitlyDisablesFunctionCallingAndParsesTextNormally()
+    {
+        // Regression test for the live bug: the FIRST turn's function-call/
+        // function-response history is still replayed into `contents`
+        // (asserted below and in SendsThreeConversationTurns), so merely
+        // omitting Tools/ToolConfig on this second call was not sufficient
+        // -- Gemini could still attempt another function call. The fix
+        // must set FunctionCallingConfigMode.None explicitly.
+        var runId = Guid.NewGuid();
+
+        var fakeClient =
+            new FakeFinanceAssistantModelClient(
+                CreateTextResponse("The reconciliation has 95 matched records."));
+
+        var provider =
+            new GeminiFinanceAssistantProvider(
+                fakeClient,
+                "gemini-2.5-flash");
+
+        var previousToolCall =
+            new FinanceToolCall
+            {
+                Id = "call-456",
+                Name = "getReconciliationSummary",
+                Arguments = new Dictionary<string, JsonElement>
+                {
+                    ["runId"] =
+                        JsonSerializer.Deserialize<JsonElement>($"\"{runId}\"")
+                }
+            };
+
+        var toolResult =
+            new FinanceToolResultMessage
+            {
+                ToolCallId = "call-456",
+                ToolName = "getReconciliationSummary",
+                Success = true,
+                ResultJson = """{"matched":95,"mismatched":5}"""
+            };
+
+        var response =
+            await provider.AskAsync(
+                new FinanceAssistantProviderRequest
+                {
+                    RunId = runId,
+                    Question = "Summarize the reconciliation.",
+                    Tools = Array.Empty<FinanceToolDefinition>(),
+                    PreviousToolCalls = new[] { previousToolCall },
+                    ToolResults = new[] { toolResult }
+                });
+
+        Assert.Multiple(() =>
+        {
+            // The provider-level config actually sent must explicitly
+            // disable function calling -- not merely omit Tools.
+            Assert.That(
+                fakeClient.LastConfig.Tools,
+                Is.Null.Or.Empty);
+
+            Assert.That(
+                fakeClient.LastConfig.ToolConfig,
+                Is.Not.Null);
+
+            Assert.That(
+                fakeClient.LastConfig.ToolConfig!.FunctionCallingConfig,
+                Is.Not.Null);
+
+            Assert.That(
+                fakeClient.LastConfig.ToolConfig!.FunctionCallingConfig!.Mode,
+                Is.EqualTo(FunctionCallingConfigMode.None));
+
+            // Normal text response still parses correctly under the fix.
+            Assert.That(response.RequiresToolExecution, Is.False);
+            Assert.That(
+                response.Answer,
+                Is.EqualTo("The reconciliation has 95 matched records."));
+        });
+    }
+
+    [Test]
+    public async Task AskAsync_WhenModelStillReturnsFunctionCallDuringFinalSynthesis_ProviderStillReportsIt()
+    {
+        // Defense-in-depth: even with Mode=None now set, the provider must
+        // faithfully report a function-call response rather than silently
+        // discarding or misinterpreting it -- this is what lets
+        // FinanceAssistantService's own safety guard actually catch a
+        // genuine SDK/model misbehavior instead of fabricating an answer.
+        var fakeClient =
+            new FakeFinanceAssistantModelClient(
+                CreateFunctionCallResponse(
+                    "getReconciliationSummary",
+                    "call-999",
+                    new Dictionary<string, object>
+                    {
+                        ["runId"] = Guid.NewGuid().ToString()
+                    }));
+
+        var provider =
+            new GeminiFinanceAssistantProvider(
+                fakeClient,
+                "gemini-2.5-flash");
+
+        var response =
+            await provider.AskAsync(
+                new FinanceAssistantProviderRequest
+                {
+                    RunId = Guid.NewGuid(),
+                    Question = "Summarize the reconciliation.",
+                    Tools = Array.Empty<FinanceToolDefinition>()
+                });
 
         Assert.Multiple(() =>
         {
             Assert.That(
-                initialContent.Role,
-                Is.EqualTo("user"));
+                fakeClient.LastConfig.ToolConfig!.FunctionCallingConfig!.Mode,
+                Is.EqualTo(FunctionCallingConfigMode.None));
 
-            Assert.That(
-                modelContent.Role,
-                Is.EqualTo("model"));
-
-            Assert.That(
-                toolResultContent.Role,
-                Is.EqualTo("user"));
-
-            Assert.That(
-                modelPart.FunctionCall,
-                Is.Not.Null);
-
-            Assert.That(
-                modelPart.FunctionCall!
-                    .Name,
-                Is.EqualTo(
-                    "getReconciliationSummary"));
-
-            Assert.That(
-                toolResultPart.FunctionResponse,
-                Is.Not.Null);
-
-            Assert.That(
-                toolResultPart.FunctionResponse!
-                    .Id,
-                Is.EqualTo("call-456"));
-
-            Assert.That(
-                toolResultPart.FunctionResponse!
-                    .Name,
-                Is.EqualTo(
-                    "getReconciliationSummary"));
+            Assert.That(response.RequiresToolExecution, Is.True);
+            Assert.That(response.ToolCalls, Has.Count.EqualTo(1));
         });
     }
 
@@ -404,6 +577,8 @@ public sealed class GeminiFinanceAssistantProviderTests
         public List<Content> LastContents { get; private set; }
             = new();
 
+        public GenerateContentConfig LastConfig { get; private set; } = null!;
+
         public Task<GenerateContentResponse>
             GenerateContentAsync(
                 string model,
@@ -413,6 +588,7 @@ public sealed class GeminiFinanceAssistantProviderTests
         {
             Calls++;
             LastContents = contents;
+            LastConfig = config;
 
             if (_responses.Count == 0)
             {

@@ -1,4 +1,7 @@
 using System.Text.Json;
+using FinSight.Application.Abstractions.Persistence;
+using FinSight.Domain.Entities;
+using FinSight.Domain.Enums;
 
 namespace FinSight.Application.AI;
 
@@ -7,13 +10,19 @@ public sealed class FinanceAssistantService
 {
     private readonly IFinanceAssistantProvider _provider;
     private readonly IFinanceToolRegistry _registry;
+    private readonly IAuditLogWriter _auditLogWriter;
+    private readonly IUnitOfWork _unitOfWork;
 
     public FinanceAssistantService(
         IFinanceAssistantProvider provider,
-        IFinanceToolRegistry registry)
+        IFinanceToolRegistry registry,
+        IAuditLogWriter auditLogWriter,
+        IUnitOfWork unitOfWork)
     {
         _provider = provider;
         _registry = registry;
+        _auditLogWriter = auditLogWriter;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<FinanceAssistantResponse> AskAsync(
@@ -40,6 +49,97 @@ public sealed class FinanceAssistantService
                 nameof(request));
         }
 
+        FinanceAssistantResponse response;
+
+        try
+        {
+            response =
+                await ExecuteAsync(
+                    request,
+                    cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            var failedPayload =
+                JsonSerializer.Serialize(
+                    new
+                    {
+                        run_id =
+                            request.RunId,
+
+                        requested_provider =
+                            _provider.ProviderName,
+
+                        error_type =
+                            ex.GetType().Name,
+
+                        error_message =
+                            ex.Message
+                    });
+
+            await _auditLogWriter.AddAsync(
+                new AuditLog(
+                    AuditEventType.AiAssistantFailed,
+                    failedPayload,
+                    request.RunId),
+                cancellationToken);
+
+            await _unitOfWork.SaveChangesAsync(
+                cancellationToken);
+
+            throw;
+        }
+
+        var successPayload =
+            JsonSerializer.Serialize(
+                new
+                {
+                    run_id =
+                        request.RunId,
+
+                    requested_provider =
+                        _provider.ProviderName,
+
+                    tools_used =
+                        response.ToolsUsed,
+
+                    // Deliberately not the raw question text -- see
+                    // FinanceAssistantService class-level reasoning: F9's
+                    // AiExplanationService audit payloads never persist
+                    // free-text user input either, only structured
+                    // metadata. Length alone is enough to be operationally
+                    // useful without storing user-authored content.
+                    question_length =
+                        request.Question.Trim().Length
+                });
+
+        await _auditLogWriter.AddAsync(
+            new AuditLog(
+                AuditEventType.AiQuestionAsked,
+                successPayload,
+                request.RunId),
+            cancellationToken);
+
+        await _unitOfWork.SaveChangesAsync(
+            cancellationToken);
+
+        return response;
+    }
+
+    /// <summary>
+    /// The original two-call tool-orchestration flow, unchanged in
+    /// behavior -- extracted verbatim so AskAsync can wrap it once with
+    /// audit logging at a single success exit point and a single failure
+    /// catch, instead of duplicating both at every return statement.
+    /// </summary>
+    private async Task<FinanceAssistantResponse> ExecuteAsync(
+        FinanceAssistantRequest request,
+        CancellationToken cancellationToken)
+    {
         var toolDefinitions =
             BuildToolDefinitions();
 
@@ -116,6 +216,7 @@ public sealed class FinanceAssistantService
             }
 
             if (!FinanceToolRequestMapper.TryMap(
+                    toolCall.Name,
                     toolCall.Arguments,
                     out var toolRequest,
                     out var mappingError))

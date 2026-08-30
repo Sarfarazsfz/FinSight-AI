@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FinSight.Application.Abstractions.Persistence;
 using FinSight.Application.Abstractions.Services;
 using FinSight.Application.DTOs.Ingestion;
@@ -7,6 +8,9 @@ using FinSight.DataGenerator.Generation;
 using FinSight.DataGenerator.Models;
 using FinSight.DataGenerator.Validation;
 using FinSight.Domain.Entities;
+using FinSight.Domain.Enums;
+using FinSight.Infrastructure.Persistence;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace FinSight.Tests.Integration;
@@ -448,6 +452,150 @@ public sealed class GroundTruthEndToEndIntegrationTests
                 Is.EqualTo(first.ReasonCode),
                 $"{reference}: ReasonCode differs between run 1 and run 2.");
         }
+    }
+
+    /// <summary>
+    /// Phase 9: proves only that the additive timing fields exist on a real,
+    /// persisted ReconciliationCompleted audit log and hold sane (non-negative,
+    /// numeric) values -- NOT a performance assertion, and no specific
+    /// duration/throughput value is asserted, so this cannot become flaky
+    /// under real timing variance.
+    /// </summary>
+    [Test]
+    public async Task ExecuteAsync_OnSuccess_RecordsDurationAndThroughputInCompletedAuditLog()
+    {
+        await _fixture.ResetDatabaseAsync();
+
+        await using var scope =
+            _fixture.CreateScope();
+
+        var ingestionService =
+            scope.ServiceProvider
+                .GetRequiredService<IBatchIngestionService>();
+
+        var reconciliationService =
+            scope.ServiceProvider
+                .GetRequiredService<IReconciliationService>();
+
+        var dbContext =
+            scope.ServiceProvider
+                .GetRequiredService<AppDbContext>();
+
+        await using var paymentsStream =
+            CreateStream(
+                """
+                payment_record_id,transaction_reference,amount,currency,transaction_date,payment_status
+                PAY-005001,TXN-5001,1000.00,INR,2026-08-01,COMPLETED
+                PAY-005002,TXN-5002,2000.00,INR,2026-08-02,COMPLETED
+                """);
+
+        await using var bankStream =
+            CreateStream(
+                """
+                bank_record_id,transaction_reference,amount,currency,transaction_date,bank_status
+                BANK-005001,TXN-5001,1000.00,INR,2026-08-01,CLEARED
+                BANK-005002,TXN-5002,2000.00,INR,2026-08-02,CLEARED
+                """);
+
+        await using var settlementStream =
+            CreateStream(
+                """
+                settlement_record_id,transaction_reference,amount,currency,transaction_date,settlement_status
+                SET-005001,TXN-5001,1000.00,INR,2026-08-01,SETTLED
+                SET-005002,TXN-5002,2000.00,INR,2026-08-02,SETTLED
+                """);
+
+        var ingestionResult =
+            await ingestionService.IngestAsync(
+                new BatchIngestionRequest
+                {
+                    BatchLabel =
+                        "Phase 9 Timing Audit Test",
+
+                    CreatedBy =
+                        "integration-test",
+
+                    PaymentFile =
+                        paymentsStream,
+
+                    BankFile =
+                        bankStream,
+
+                    SettlementFile =
+                        settlementStream
+                });
+
+        var runResult =
+            await reconciliationService.ExecuteAsync(
+                new ReconciliationRunRequest
+                {
+                    BatchId = ingestionResult.BatchId
+                });
+
+        var completedAuditLog =
+            await dbContext.AuditLogs
+                .Where(
+                    x =>
+                        x.RunId == runResult.RunId &&
+                        x.EventType == AuditEventType.ReconciliationCompleted)
+                .SingleOrDefaultAsync();
+
+        Assert.That(
+            completedAuditLog,
+            Is.Not.Null,
+            "No ReconciliationCompleted audit log was persisted for this run.");
+
+        using var payload =
+            JsonDocument.Parse(completedAuditLog!.DetailPayload);
+
+        var root = payload.RootElement;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                root.TryGetProperty("duration_ms", out var durationProperty),
+                Is.True,
+                "duration_ms is missing from the ReconciliationCompleted audit payload.");
+
+            Assert.That(
+                durationProperty.ValueKind,
+                Is.EqualTo(JsonValueKind.Number),
+                "duration_ms must be a JSON number.");
+
+            Assert.That(
+                durationProperty.GetInt64(),
+                Is.GreaterThanOrEqualTo(0),
+                "duration_ms must not be negative.");
+
+            Assert.That(
+                root.TryGetProperty("records_per_second", out var throughputProperty),
+                Is.True,
+                "records_per_second is missing from the ReconciliationCompleted audit payload.");
+
+            Assert.That(
+                throughputProperty.ValueKind,
+                Is.EqualTo(JsonValueKind.Number),
+                "records_per_second must be a JSON number.");
+
+            Assert.That(
+                throughputProperty.GetDouble(),
+                Is.GreaterThanOrEqualTo(0),
+                "records_per_second must not be negative.");
+        });
+
+        // The existing, unchanged aggregate fields must still be present and
+        // correct alongside the two new ones -- proving this is additive,
+        // not a replacement of the prior payload shape.
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                root.GetProperty("total_units").GetInt32(),
+                Is.EqualTo(runResult.TotalReconciliationUnits));
+
+            Assert.That(
+                root.GetProperty("match_rate").GetDecimal(),
+                Is.EqualTo(runResult.MatchRate));
+        });
     }
 
     private static async Task<Dictionary<string, (string Status, string ReasonCode)>>

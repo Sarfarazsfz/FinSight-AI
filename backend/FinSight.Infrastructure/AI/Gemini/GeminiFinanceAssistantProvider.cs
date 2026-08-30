@@ -36,12 +36,36 @@ public sealed class GeminiFinanceAssistantProvider
 
         if (request.Tools.Count == 0)
         {
-            // Final synthesis turn:
-            // no tools are exposed so Gemini must produce
-            // a final natural-language answer from the
-            // conversation and collected tool results.
+            // Final synthesis turn. Omitting Tools/ToolConfig entirely
+            // (the prior implementation) is NOT sufficient here: `contents`
+            // below still replays the FIRST turn's function-call/
+            // function-response history (model + user turns), and a live
+            // run proved Gemini can still emit another function call in
+            // that context even with no tool declarations offered this
+            // turn -- surfacing as FinanceAssistantService's
+            // "Gemini attempted a tool call during final synthesis" safety
+            // exception. FunctionCallingConfigMode.None is the SDK's own
+            // explicit, documented way to force no function-call
+            // predictions regardless of conversation history; ToolConfig
+            // does not require Tools to be set (confirmed from the
+            // Google.GenAI package's own XML docs). Verified by
+            // GeminiFinanceAssistantProviderTests -- do not revert to an
+            // empty config on the assumption that omission alone is
+            // equivalent.
             config =
-                new GenerateContentConfig();
+                new GenerateContentConfig
+                {
+                    ToolConfig =
+                        new ToolConfig
+                        {
+                            FunctionCallingConfig =
+                                new FunctionCallingConfig
+                                {
+                                    Mode =
+                                        FunctionCallingConfigMode.None
+                                }
+                        }
+                };
         }
         else
         {
@@ -132,74 +156,32 @@ public sealed class GeminiFinanceAssistantProvider
                     }
             });
 
-        // If this is the second provider call, reproduce
-        // the model's previous function-call turn.
-        if (request.PreviousToolCalls.Count > 0)
+        // Final synthesis deliberately sends a SINGLE clean user turn (the
+        // userPrompt above) rather than replaying the first call's raw
+        // function-call/function-response conversation as native Gemini
+        // turns. FinanceAssistantService already flattens every tool
+        // result into the plain-text evidence block embedded in
+        // `request.Question` (see `finalQuestion` in
+        // FinanceAssistantService.ExecuteAsync) -- replaying the same
+        // evidence a second time as structured model/user turns was
+        // redundant, and a live run (a second question, after a first one
+        // succeeded) proved that ending the conversation on a
+        // function-response turn still prompted Gemini to continue the
+        // tool-calling pattern, even with FunctionCallingConfigMode.None
+        // set on this exact call. OpenAiFinanceAssistantProvider already
+        // takes this no-replay approach for its own final synthesis --
+        // this brings Gemini into parity with an already-correct sibling,
+        // not a new invented design.
+        //
+        // The structural invariant (every prior tool call got exactly one
+        // result) is still enforced even though the history itself is no
+        // longer replayed to the model.
+        if (request.PreviousToolCalls.Count !=
+            request.ToolResults.Count)
         {
-            var previousFunctionCallParts =
-                request.PreviousToolCalls
-                    .Select(
-                        call =>
-                        {
-                            if (!string.IsNullOrWhiteSpace(
-                                    call.ModelPartJson))
-                            {
-                                var originalPart =
-                                    Part.FromJson(
-                                        call.ModelPartJson);
-
-                                if (originalPart is null)
-                                {
-                                    throw new InvalidOperationException(
-                                        $"Unable to restore original Gemini " +
-                                        $"model part for tool '{call.Name}'.");
-                                }
-
-                                return originalPart;
-                            }
-
-                            return
-                                Part.FromFunctionCall(
-                                    call.Name,
-                                    call.Arguments.ToDictionary(
-                                        x => x.Key,
-                                        x => ConvertJsonElement(x.Value)));
-                        })
-                    .ToList();
-
-            contents.Add(
-                new Content
-                {
-                    Role = "model",
-                    Parts = previousFunctionCallParts
-                });
-
-            if (request.ToolResults.Count !=
-                request.PreviousToolCalls.Count)
-            {
-                throw new InvalidOperationException(
-                    "The number of tool results must match " +
-                    "the number of previous tool calls.");
-            }
-
-            var functionResponseParts =
-                request.ToolResults
-                    .Select(
-                        result =>
-                            new Part
-                            {
-                                FunctionResponse =
-                                    CreateFunctionResponse(
-                                        result)
-                            })
-                    .ToList();
-
-            contents.Add(
-                new Content
-                {
-                    Role = "user",
-                    Parts = functionResponseParts
-                });
+            throw new InvalidOperationException(
+                "The number of tool results must match " +
+                "the number of previous tool calls.");
         }
 
         var response =
@@ -265,103 +247,6 @@ var functionCallParts =
         };
     }
 
-    private static object ConvertJsonElement(
-        JsonElement element)
-    {
-        return element.ValueKind switch
-        {
-            JsonValueKind.String =>
-                element.GetString() ?? string.Empty,
-
-            JsonValueKind.Number =>
-                element.TryGetInt64(out var integer)
-                    ? integer
-                    : element.GetDecimal(),
-
-            JsonValueKind.True =>
-                true,
-
-            JsonValueKind.False =>
-                false,
-
-            JsonValueKind.Null =>
-                string.Empty,
-
-            JsonValueKind.Array =>
-                element.EnumerateArray()
-                    .Select(ConvertJsonElement)
-                    .ToList(),
-
-            JsonValueKind.Object =>
-                element.EnumerateObject()
-                    .ToDictionary(
-                        x => x.Name,
-                        x => ConvertJsonElement(x.Value)),
-
-            _ =>
-                element.GetRawText()
-        };
-    }
-
-    private static FunctionResponse CreateFunctionResponse(
-        FinanceToolResultMessage result)
-    {
-        var responseObject =
-            new Dictionary<string, object>();
-
-        if (result.Success)
-        {
-            responseObject["output"] =
-                ParseResultJson(result.ResultJson);
-        }
-        else
-        {
-            responseObject["error"] =
-                new
-                {
-                    code =
-                        result.ErrorCode ?? "TOOL_ERROR",
-                    message =
-                        ParseResultJson(result.ResultJson)
-                };
-        }
-
-        var json =
-            JsonSerializer.Serialize(
-                new
-                {
-                    id = result.ToolCallId,
-                    name = result.ToolName,
-                    response = responseObject
-                });
-
-        var functionResponse =
-            FunctionResponse.FromJson(json);
-
-        if (functionResponse is null)
-        {
-            throw new InvalidOperationException(
-                $"Unable to create Gemini function response " +
-                $"for tool '{result.ToolName}'.");
-        }
-
-        return functionResponse;
-    }
-
-    private static object ParseResultJson(
-        string resultJson)
-    {
-        if (string.IsNullOrWhiteSpace(resultJson))
-        {
-            return new Dictionary<string, object>();
-        }
-
-        using var document =
-            JsonDocument.Parse(resultJson);
-
-        return ConvertJsonElement(
-            document.RootElement);
-    }
     private static FunctionDeclaration
         CreateFunctionDeclaration(
             FinanceToolDefinition definition)

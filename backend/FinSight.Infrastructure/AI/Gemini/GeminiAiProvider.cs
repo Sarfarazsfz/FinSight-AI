@@ -8,34 +8,44 @@ namespace FinSight.Infrastructure.AI.Gemini;
 
 public sealed class GeminiAiProvider : IGeminiAiProvider
 {
-    private readonly Client _client;
+    private readonly string _apiKey;
     private readonly string _model;
+    private readonly Lazy<Client?> _client;
 
+    // Deliberately LAZY validation (was eager-throw-in-constructor before
+    // the Global AI Provider DI Resolution fix): Gemini is one of
+    // potentially several configured providers in AiProviderOptions.
+    // ExceptionExplanation.ProviderOrder, and AiProviderRouter's chain
+    // uses IsAvailable as a preflight to skip an unconfigured provider
+    // without ever calling it. An eager throw here made Gemini mandatory
+    // for every deployment the moment this class was constructed --
+    // which broke any order that still lists Gemini (e.g. the default
+    // [Gemini, OpenAI]) whenever only a different provider (e.g. NVIDIA)
+    // is actually configured. Mirrors NvidiaAiProvider's established
+    // pattern exactly.
     public GeminiAiProvider(
         string apiKey,
         string model)
     {
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
-            throw new ArgumentException(
-                "Gemini API key is required.",
-                nameof(apiKey));
-        }
+        _apiKey = apiKey ?? string.Empty;
+        _model = model ?? string.Empty;
 
-        if (string.IsNullOrWhiteSpace(model))
-        {
-            throw new ArgumentException(
-                "Gemini model is required.",
-                nameof(model));
-        }
-
-        _client = new Client(apiKey: apiKey);
-        _model = model;
+        _client =
+            new Lazy<Client?>(
+                () =>
+                    IsConfigured()
+                        ? new Client(apiKey: _apiKey)
+                        : null);
     }
 
     public string ProviderName => "Gemini";
 
-    public bool IsAvailable => true;
+    /// <summary>
+    /// Real, computed configuredness (was hardcoded `true`) -- this is
+    /// what lets AiProviderRouter's chain exclude an unconfigured Gemini
+    /// from the effective chain without ever attempting a call.
+    /// </summary>
+    public bool IsAvailable => IsConfigured();
 
     public async Task<AiExplanationResponse>
         GenerateExplanationAsync(
@@ -46,6 +56,14 @@ public sealed class GeminiAiProvider : IGeminiAiProvider
         {
             throw new ArgumentNullException(
                 nameof(request));
+        }
+
+        var client = _client.Value;
+
+        if (client is null)
+        {
+            throw new InvalidOperationException(
+                "Gemini AI provider is not configured.");
         }
 
         var prompt = BuildPrompt(request);
@@ -83,7 +101,7 @@ public sealed class GeminiAiProvider : IGeminiAiProvider
         };
 
         var response =
-            await _client.Models.GenerateContentAsync(
+            await client.Models.GenerateContentAsync(
                 model: _model,
                 contents: prompt,
                 config: new GenerateContentConfig
@@ -142,6 +160,12 @@ public sealed class GeminiAiProvider : IGeminiAiProvider
             GeneratedAtUtc =
                 DateTime.UtcNow
         };
+    }
+
+    private bool IsConfigured()
+    {
+        return !string.IsNullOrWhiteSpace(_apiKey) &&
+               !string.IsNullOrWhiteSpace(_model);
     }
 
     private static string BuildPrompt(

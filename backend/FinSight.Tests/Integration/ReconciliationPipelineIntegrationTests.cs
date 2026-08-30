@@ -633,6 +633,212 @@ public sealed class ReconciliationPipelineIntegrationTests
             Is.EqualTo(0));
     }
 
+    /// <summary>
+    /// Phase 10 (Flexible CSV Column Mapping) requirement: reconciliation
+    /// behavior must be unchanged after flexible header mapping. Rather
+    /// than hand-predict expected match/mismatch/missing counts for a new
+    /// dataset (which would risk assuming undocumented classification
+    /// rules), this ingests and reconciles the exact same row data twice
+    /// -- once with canonical headers, once with approved-alias headers
+    /// in a different column order and case -- and asserts the two runs
+    /// produce identical aggregate counts, match rate, and per-reference
+    /// Status assignments. This proves header aliasing is invisible to
+    /// reconciliation, without this test needing to know what "correct"
+    /// classification looks like.
+    /// </summary>
+    [Test]
+    public async Task AliasHeaderBatch_ReconciliationOutcome_IsIdenticalToCanonicalHeaderBatch()
+    {
+        await _fixture.ResetDatabaseAsync();
+
+        await using (var canonicalScope = _fixture.CreateScope())
+        {
+            var canonicalOutcome =
+                await IngestAndReconcileAsync(
+                    canonicalScope,
+                    paymentsCsv:
+                        """
+                        payment_record_id,transaction_reference,amount,currency,transaction_date,payment_status
+                        PAY-100001,TXN-0001,1000.00,INR,2026-08-01,COMPLETED
+                        PAY-100002,TXN-0002,2000.00,INR,2026-08-02,COMPLETED
+                        PAY-100003,TXN-0003,3000.00,INR,2026-08-03,COMPLETED
+                        """,
+                    bankCsv:
+                        """
+                        bank_record_id,transaction_reference,amount,currency,transaction_date,bank_status
+                        BANK-100001,TXN-0001,1000.00,INR,2026-08-01,CLEARED
+                        BANK-100002,TXN-0002,2500.00,INR,2026-08-02,CLEARED
+                        """,
+                    settlementCsv:
+                        """
+                        settlement_record_id,transaction_reference,amount,currency,transaction_date,settlement_status
+                        SET-100001,TXN-0001,1000.00,INR,2026-08-01,SETTLED
+                        SET-100002,TXN-0002,2500.00,INR,2026-08-02,SETTLED
+                        """);
+
+            await _fixture.ResetDatabaseAsync();
+
+            await using var aliasScope = _fixture.CreateScope();
+
+            var aliasOutcome =
+                await IngestAndReconcileAsync(
+                    aliasScope,
+                    paymentsCsv:
+                        """
+                        payment_state,txn_date,currency_code,amount_paid,payment_id,txn_ref
+                        COMPLETED,2026-08-01,INR,1000.00,PAY-100001,TXN-0001
+                        COMPLETED,2026-08-02,INR,2000.00,PAY-100002,TXN-0002
+                        COMPLETED,2026-08-03,INR,3000.00,PAY-100003,TXN-0003
+                        """,
+                    bankCsv:
+                        """
+                        Bank_State,Txn_Date,Currency_Code,Amount_Paid,Bank_Id,Txn_Ref
+                        CLEARED,2026-08-01,INR,1000.00,BANK-100001,TXN-0001
+                        CLEARED,2026-08-02,INR,2500.00,BANK-100002,TXN-0002
+                        """,
+                    settlementCsv:
+                        """
+                        settlement-state,txn-date,currency-code,amount-paid,settlement-id,txn-ref
+                        SETTLED,2026-08-01,INR,1000.00,SET-100001,TXN-0001
+                        SETTLED,2026-08-02,INR,2500.00,SET-100002,TXN-0002
+                        """);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    aliasOutcome.IngestionResult.PaymentRecordCount,
+                    Is.EqualTo(canonicalOutcome.IngestionResult.PaymentRecordCount));
+
+                Assert.That(
+                    aliasOutcome.IngestionResult.BankRecordCount,
+                    Is.EqualTo(canonicalOutcome.IngestionResult.BankRecordCount));
+
+                Assert.That(
+                    aliasOutcome.IngestionResult.SettlementRecordCount,
+                    Is.EqualTo(canonicalOutcome.IngestionResult.SettlementRecordCount));
+
+                Assert.That(
+                    aliasOutcome.RunResult.TotalReconciliationUnits,
+                    Is.EqualTo(canonicalOutcome.RunResult.TotalReconciliationUnits));
+
+                Assert.That(
+                    aliasOutcome.RunResult.MatchedCount,
+                    Is.EqualTo(canonicalOutcome.RunResult.MatchedCount));
+
+                Assert.That(
+                    aliasOutcome.RunResult.MismatchedCount,
+                    Is.EqualTo(canonicalOutcome.RunResult.MismatchedCount));
+
+                Assert.That(
+                    aliasOutcome.RunResult.MissingCount,
+                    Is.EqualTo(canonicalOutcome.RunResult.MissingCount));
+
+                Assert.That(
+                    aliasOutcome.RunResult.DuplicateCount,
+                    Is.EqualTo(canonicalOutcome.RunResult.DuplicateCount));
+
+                Assert.That(
+                    aliasOutcome.RunResult.UnresolvedCount,
+                    Is.EqualTo(canonicalOutcome.RunResult.UnresolvedCount));
+
+                Assert.That(
+                    aliasOutcome.RunResult.MatchRate,
+                    Is.EqualTo(canonicalOutcome.RunResult.MatchRate));
+
+                // Compare Status keyed by reference (not row order) --
+                // both runs use the same TXN-000x references, which is
+                // fine since normalized transactions are scoped per run.
+                Assert.That(
+                    aliasOutcome.StatusByReference.Keys,
+                    Is.EquivalentTo(canonicalOutcome.StatusByReference.Keys));
+
+                foreach (var reference in canonicalOutcome.StatusByReference.Keys)
+                {
+                    Assert.That(
+                        aliasOutcome.StatusByReference[reference],
+                        Is.EqualTo(canonicalOutcome.StatusByReference[reference]),
+                        $"Status for {reference} differed between the canonical " +
+                        "and alias-header runs.");
+                }
+            });
+        }
+    }
+
+    private sealed record IngestAndReconcileOutcome(
+        BatchIngestionResult IngestionResult,
+        ReconciliationRunResult RunResult,
+        Dictionary<string, MatchStatus> StatusByReference);
+
+    private static async Task<IngestAndReconcileOutcome> IngestAndReconcileAsync(
+        AsyncServiceScope scope,
+        string paymentsCsv,
+        string bankCsv,
+        string settlementCsv)
+    {
+        var ingestionService =
+            scope.ServiceProvider
+                .GetRequiredService<IBatchIngestionService>();
+
+        var reconciliationService =
+            scope.ServiceProvider
+                .GetRequiredService<IReconciliationService>();
+
+        var resultRepository =
+            scope.ServiceProvider
+                .GetRequiredService<IReconciliationResultRepository>();
+
+        var dbContext =
+            scope.ServiceProvider
+                .GetRequiredService<AppDbContext>();
+
+        await using var paymentsStream = CreateStream(paymentsCsv);
+        await using var bankStream = CreateStream(bankCsv);
+        await using var settlementStream = CreateStream(settlementCsv);
+
+        var ingestionResult =
+            await ingestionService.IngestAsync(
+                new BatchIngestionRequest
+                {
+                    BatchLabel = "Phase 10 - Alias Equivalence Test",
+                    CreatedBy = "integration-test",
+                    PaymentFile = paymentsStream,
+                    BankFile = bankStream,
+                    SettlementFile = settlementStream
+                });
+
+        var runResult =
+            await reconciliationService.ExecuteAsync(
+                new ReconciliationRunRequest
+                {
+                    BatchId = ingestionResult.BatchId
+                });
+
+        var results =
+            await resultRepository.GetByRunIdAsync(runResult.RunId);
+
+        var normalizedTransactions =
+            await dbContext
+                .Set<FinSight.Domain.Entities.NormalizedTransaction>()
+                .AsNoTracking()
+                .Where(x => x.RunId == runResult.RunId)
+                .ToListAsync();
+
+        var referenceById =
+            normalizedTransactions.ToDictionary(
+                x => x.Id,
+                x => x.TransactionReference);
+
+        var statusByReference =
+            results.ToDictionary(
+                x => referenceById[x.NormalizedTransactionId],
+                x => x.Status);
+
+        return new IngestAndReconcileOutcome(
+            ingestionResult,
+            runResult,
+            statusByReference);
+    }
+
     private static MemoryStream CreateStream(
         string content)
     {

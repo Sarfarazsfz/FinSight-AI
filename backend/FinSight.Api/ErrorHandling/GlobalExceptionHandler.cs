@@ -33,6 +33,9 @@ public sealed class GlobalExceptionHandler
                 AiProviderUnavailableException =>
                     StatusCodes.Status503ServiceUnavailable,
 
+                FinanceAssistantProviderUnavailableException =>
+                    StatusCodes.Status503ServiceUnavailable,
+
                 ArgumentException =>
                     StatusCodes.Status400BadRequest,
 
@@ -100,6 +103,16 @@ public sealed class GlobalExceptionHandler
                 Instance =
                     httpContext.Request.Path
             };
+
+        // Scoped to this one exception type only -- every other type
+        // (including AiProviderUnavailableException/F9) keeps its existing
+        // detail-less ProblemDetails shape unchanged.
+        if (exception is FinanceAssistantProviderUnavailableException)
+        {
+            problemDetails.Detail =
+                "Finance Assistant temporarily unavailable. " +
+                "Reconciliation results are unaffected.";
+        }
 
         problemDetails.Extensions["traceId"] =
             httpContext.TraceIdentifier;
