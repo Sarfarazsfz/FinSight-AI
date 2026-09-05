@@ -1,0 +1,59 @@
+# ============================================================
+# .dockerignore — backend/ build context
+#
+# Excludes files that are not needed in the Docker image,
+# keeping the build context small and the image clean.
+#
+# Do NOT add FinSight.Api/, FinSight.Application/,
+# FinSight.Domain/, or FinSight.Infrastructure/ here —
+# they are required for the build.
+# EF Core migration files inside FinSight.Infrastructure/
+# are also required (publish copies them for design-time).
+# ============================================================
+
+# ── .NET build artifacts ─────────────────────────────────────
+**/bin/
+**/obj/
+
+# ── Projects not referenced by FinSight.Api ──────────────────
+# These two projects are not in FinSight.Api's project-reference
+# graph and are never needed in the Docker build.
+FinSight.DataGenerator/
+FinSight.Tests/
+
+# ── Solution file (not needed for dotnet publish) ────────────
+*.slnx
+*.sln
+
+# ── Visual Studio local artifacts ───────────────────────────
+.vs/
+*.user
+*.userosscache
+*.suo
+*.userprefs
+
+# ── Secrets and credentials ──────────────────────────────────
+secrets.json
+*.env
+*.env.*
+appsettings.*.local.json
+
+# ── Development-only output directories ──────────────────────
+# Reset-link sink: contains live credentials, must never ship
+dev-password-resets/
+
+# ── Generated / reproducible output ──────────────────────────
+test-data/generated/
+
+# ── OS artifacts ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Git ──────────────────────────────────────────────────────
+.git/
+.gitignore
+.gitattributes
+
+# ── Editor tooling ───────────────────────────────────────────
+.claude/
+.editorconfig
