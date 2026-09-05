@@ -1,10 +1,16 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
+  HostListener,
+  afterNextRender,
+  afterRenderEffect,
   computed,
   inject,
   input,
+  output,
   signal,
+  viewChild,
 } from '@angular/core';
 import type { HttpErrorResponse } from '@angular/common/http';
 import { Marked } from 'marked';
@@ -202,18 +208,104 @@ function formatRelativeTime(askedAtMs: number, nowMs: number): string {
   imports: [],
   templateUrl: './finance-assistant-panel.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    class: 'block h-full w-full min-h-0',
+  },
 })
 export class FinanceAssistantPanel {
   private readonly reconciliationApi = inject(ReconciliationApi);
   private nextExchangeId = 0;
 
   readonly runId = input.required<string>();
+  readonly showCloseButton = input<boolean>(false);
+  readonly closed = output<void>();
+
+  private readonly conversationContainer = viewChild<ElementRef<HTMLElement>>('conversationContainer');
+  private readonly questionTextarea = viewChild<ElementRef<HTMLTextAreaElement>>('questionTextarea');
+
+  /**
+   * Compact single-line height and a generous-but-bounded cap -- about
+   * six or seven lines before the textarea itself starts scrolling
+   * internally, so a long pasted question never grows the composer (or
+   * the page) without limit. Matches the `max-h-40` (160px) Tailwind
+   * class on the textarea in the template; kept here too since the
+   * auto-grow calculation needs the numeric value, not just the class.
+   */
+  private static readonly ComposerMinHeightPx = 40;
+  private static readonly ComposerMaxHeightPx = 160;
 
   protected readonly suggestedQuestions = SUGGESTED_QUESTIONS;
 
   protected readonly exchanges = signal<readonly AssistantExchange[]>([]);
   protected readonly questionText = signal('');
   protected readonly pendingId = signal<number | null>(null);
+
+  /**
+   * Tracks whether the conversation was scrolled at/near its bottom the
+   * last time the user touched the scroll container. Read (not written)
+   * by the auto-scroll effect below: a reader who has intentionally
+   * scrolled up to re-read an earlier answer is never yanked back down
+   * by a loading indicator or a response arriving, but sending a
+   * question always re-anchors to "follow latest" -- the same behavior
+   * a modern chat UI gives for free.
+   */
+  private isFollowingBottom = true;
+
+  constructor() {
+    // Runs after Angular has actually patched the DOM for any render in
+    // which exchanges()/pendingId() changed -- deliberately not the
+    // queueMicrotask this replaced, which could fire before OnPush's
+    // change detection had flushed the new message into the DOM and so
+    // sometimes measured the conversation's old, shorter scrollHeight.
+    afterRenderEffect(() => {
+      // Read to establish the dependency; the effect reruns whenever
+      // either changes.
+      this.exchanges();
+      this.pendingId();
+
+      const container = this.conversationContainer()?.nativeElement;
+
+      if (container && this.isFollowingBottom) {
+        container.scrollTop = container.scrollHeight;
+      }
+    });
+
+    // One-shot, not reactive: sets the textarea's initial compact height
+    // through the exact same calculation typing uses, rather than
+    // relying on the `rows="1"` attribute's own natural sizing to happen
+    // to agree with ComposerMinHeightPx.
+    afterNextRender(() => {
+      const textarea = this.questionTextarea()?.nativeElement;
+
+      if (textarea) {
+        this.autoGrow(textarea);
+      }
+    });
+  }
+
+  @HostListener('document:keydown.escape', ['$event'])
+  protected onEscape(event: Event): void {
+    if (this.showCloseButton()) {
+      event.preventDefault();
+      this.close();
+    }
+  }
+
+  protected close(): void {
+    this.closed.emit();
+  }
+
+  /**
+   * Threshold (px) below which the user is considered "at the bottom"
+   * and new content should keep following automatically.
+   */
+  private static readonly NearBottomThresholdPx = 96;
+
+  protected onConversationScroll(event: Event): void {
+    const el = event.target as HTMLElement;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    this.isFollowingBottom = distanceFromBottom < FinanceAssistantPanel.NearBottomThresholdPx;
+  }
 
   /** Frontend-only, never persisted -- see the composer's own doc comment. */
   protected readonly feedbackByExchangeId = signal<ReadonlyMap<number, 'up' | 'down'>>(new Map());
@@ -226,11 +318,20 @@ export class FinanceAssistantPanel {
   protected readonly isEmpty = computed(() => this.exchanges().length === 0);
 
   protected onComposerInput(event: Event): void {
-    this.questionText.set((event.target as HTMLInputElement).value);
+    const textarea = event.target as HTMLTextAreaElement;
+    this.questionText.set(textarea.value);
+    this.autoGrow(textarea);
   }
 
+  /**
+   * ChatGPT-style semantics: Enter alone sends; Shift+Enter inserts a
+   * real newline. Only Enter-without-Shift is intercepted -- Shift+Enter
+   * is left completely alone so the browser's own default textarea
+   * behavior (insert "\n" at the caret) handles it, which is simpler and
+   * more correct than reimplementing newline insertion by hand.
+   */
   protected onComposerKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Enter') {
+    if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
       this.submit();
     }
@@ -238,6 +339,37 @@ export class FinanceAssistantPanel {
 
   protected useSuggestedQuestion(question: string): void {
     this.questionText.set(question);
+
+    const textarea = this.questionTextarea()?.nativeElement;
+
+    if (textarea) {
+      // The signal write above updates the bound [value] on the next
+      // change-detection pass, not synchronously -- defer the height
+      // recalculation to the same tick that DOM update lands in.
+      queueMicrotask(() => this.autoGrow(textarea));
+    }
+  }
+
+  /**
+   * Resets height to the minimum first (never just "auto" left in place
+   * -- a shrinking edit, e.g. deleting a pasted paragraph, must be able
+   * to shrink back down, not only grow), reads the resulting
+   * `scrollHeight` (which now reflects exactly the content with no
+   * extra reserved space), then clamps to the configured maximum. Once
+   * the content exceeds the maximum, the textarea's own `overflow-y:
+   * auto` (see the template's `max-h-40 overflow-y-auto` classes) takes
+   * over -- this method never lets the element grow past that cap, so
+   * the surrounding page never grows because of the composer.
+   */
+  private autoGrow(textarea: HTMLTextAreaElement): void {
+    textarea.style.height = `${FinanceAssistantPanel.ComposerMinHeightPx}px`;
+
+    const next = Math.min(
+      textarea.scrollHeight,
+      FinanceAssistantPanel.ComposerMaxHeightPx,
+    );
+
+    textarea.style.height = `${Math.max(next, FinanceAssistantPanel.ComposerMinHeightPx)}px`;
   }
 
   protected onSubmit(event: Event): void {
@@ -320,6 +452,16 @@ export class FinanceAssistantPanel {
     this.exchanges.update((list) => [...list, exchange]);
     this.pendingId.set(id);
     this.questionText.set('');
+    // Sending is always an explicit, intentional action -- re-anchor to
+    // "follow latest" even if the user had scrolled up to reread
+    // something, matching modern chat UIs.
+    this.isFollowingBottom = true;
+
+    const textarea = this.questionTextarea()?.nativeElement;
+
+    if (textarea) {
+      textarea.style.height = `${FinanceAssistantPanel.ComposerMinHeightPx}px`;
+    }
 
     this.dispatch(id, trimmed);
   }

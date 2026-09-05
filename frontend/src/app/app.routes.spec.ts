@@ -30,10 +30,12 @@ describe('app.routes', () => {
       'batches',
       'batches/upload',
       'runs/:runId',
+      'runs/:runId/verify',
       'runs/:runId/results',
       'runs/:runId/results/:resultId',
       'runs/:runId/exceptions',
       'runs/:runId/exceptions/:exceptionId',
+      'data-generator',
     ]);
   });
 

@@ -350,6 +350,65 @@ describe('BatchesPage', () => {
     expect(text).not.toContain('expired');
   });
 
+  it('uses a fixed table layout so column widths stay stable regardless of content', () => {
+    expectInitialRequest().flush(page([batch()], 1, 1, 1));
+    fixture.detectChanges();
+
+    const table = el().querySelector('[data-testid="batches-table"]')!;
+    expect(table.className).toContain('table-fixed');
+  });
+
+  it('isolates table scrolling to its own viewport, separate from the page root', () => {
+    expectInitialRequest().flush(page([batch()], 1, 1, 1));
+    fixture.detectChanges();
+
+    const table = el().querySelector('[data-testid="batches-table"]')!;
+    const scrollViewport = table.parentElement!;
+    expect(scrollViewport.className).toContain('overflow-auto');
+
+    // The page header must sit outside the scrollable viewport, not
+    // inside it -- otherwise scrolling the table would also scroll the
+    // heading away.
+    const heading = el().querySelector('#batch-history-heading')!;
+    expect(scrollViewport.contains(heading)).toBeFalse();
+  });
+
+  it('wraps a long batch name within its own cell without forcing single-word breaks', () => {
+    expectInitialRequest().flush(
+      page([batch({ batchLabel: 'Phase 9 - 100 Unit Cold Warm Benchmark' })], 1, 1, 1),
+    );
+    fixture.detectChanges();
+
+    const label = el().querySelector('[data-testid="batch-row"]')!.querySelector('.break-words')!;
+    expect(label.textContent).toContain('Phase 9 - 100 Unit Cold Warm Benchmark');
+    expect(label.className).not.toContain('break-all');
+    expect(label.className).not.toContain('truncate');
+  });
+
+  it('keeps the pagination control outside the scrollable table viewport', () => {
+    expectInitialRequest().flush(page([batch()], 1, 2, 21));
+    fixture.detectChanges();
+
+    const table = el().querySelector('[data-testid="batches-table"]')!;
+    const scrollViewport = table.parentElement!;
+    const pagination = el().querySelector('[data-testid="batches-pagination"]')!;
+
+    expect(scrollViewport.contains(pagination)).toBeFalse();
+  });
+
+  it('truncates a long createdBy value with the full value preserved as a title', () => {
+    const longEmail = 'a-very-long-operator-address-for-testing@finsight-enterprise.example.com';
+    expectInitialRequest().flush(page([batch({ createdBy: longEmail })], 1, 1, 1));
+    fixture.detectChanges();
+
+    const createdByLine = Array.from(
+      el().querySelectorAll<HTMLElement>('[data-testid="batch-row"] td div'),
+    ).find((div) => div.textContent?.includes(longEmail))!;
+
+    expect(createdByLine.className).toContain('truncate');
+    expect(createdByLine.getAttribute('title')).toBe(`by ${longEmail}`);
+  });
+
   it('contains no challenge-track or internal roadmap language', () => {
     const text = el().textContent!.toLowerCase();
 

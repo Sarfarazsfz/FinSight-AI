@@ -43,6 +43,19 @@ type BatchesPageState = 'loading' | 'loaded' | 'empty' | 'error';
   imports: [DatePipe, RouterLink],
   templateUrl: './batches-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    // Angular renders this component's template inside its own host
+    // element (<app-batches-page>), sitting directly inside AppShell's
+    // <main class="... lg:h-screen lg:overflow-hidden flex flex-col">.
+    // Without this, the host has no flex-grow of its own (default
+    // flex: 0 1 auto) and no min-height override (default min-height:
+    // auto), so it sizes to its content's natural height instead of
+    // filling <main>'s already-definite viewport height -- which is
+    // exactly what let a long batch table grow the whole document
+    // instead of scrolling inside its own contained viewport. Same fix
+    // already applied to RunWorkspacePage for the identical reason.
+    class: 'flex-1 min-h-0 flex flex-col',
+  },
 })
 export class BatchesPage implements OnInit {
   private readonly batchApi = inject(BatchApi);

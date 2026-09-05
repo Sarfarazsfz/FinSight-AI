@@ -34,8 +34,8 @@ approval) · **DO NOT BUILD**.
 | Uniform `ProblemDetails` errors | ✅ | KEEP | `[ZIP]` recorded two competing shapes — **resolved** |
 | **Ground-truth verification over HTTP** | ✅ | KEEP | `[ZIP]` specified `GET`; actual is **`POST`** — see [api/01](../api/01-contract.md) |
 | Audit trail write path | ✅ | KEEP | Rich, correlated |
-| **Audit-log read endpoint** | ❌ | DEFER | Blocks any audit UI |
-| **Throughput instrumentation** | ❌ | DEFER | `[OFFICIAL WEB]` names throughput in the bar |
+| **Audit-log read endpoint** | ✅ | KEEP | `GET /api/reconciliation/runs/{runId}/audit`; surfaced in `AuditEvidencePanel` |
+| **Throughput instrumentation** | ✅ | KEEP | `durationMs` + `recordsPerSecond` on summary response, server-authoritative; displayed on Run Workspace |
 | Exception resolution write path | ❌ | DEFER | Would change data-model semantics |
 
 ---
@@ -53,18 +53,24 @@ approval) · **DO NOT BUILD**.
 | Design token system | ✅ Tailwind v4 `@theme` + CSS vars | **KEEP** | delivered (F1) |
 | Icon system | ❌ none yet — zero SVG, zero glyphs | **BUILD** → Lucide | deferred until a real consumer |
 | Application shell | ✅ guarded shell, nav, logout | **KEEP** | delivered (F3) |
-| Landing page | ❌ not built — `/` redirects by session state | **BUILD** | later phase |
-| Login | ✅ real backend auth, ProblemDetails errors | **KEEP** | delivered (F3) |
-| Batch history | ❌ entry page only; **fetches nothing** | **BUILD** | later phase |
-| Batch upload + `errors[]` UX | ❌ not built | **BUILD** | later phase |
-| Run overview (match rate) | ❌ not built | **BUILD** | later phase |
-| Results table | ❌ not built | **BUILD** | later phase |
-| Evidence comparison (drawer) | ❌ not built | **BUILD** | later phase |
-| Exception queue + detail | ❌ not built | **BUILD** | later phase |
-| AI explanation panel + 503 state | ❌ not built | **BUILD** | later phase |
-| Finance Assistant + tool trail | ❌ not built | **BUILD** | later phase |
-| Independent verification | ❌ not built | **BUILD** | later phase |
-| Audit timeline | ❌ | **DEFER** | blocked on backend |
+| Landing page | ✅ editorial hero, live reconciliation mockup, KPI display, CTAs | **KEEP** | |
+| Login | ✅ real backend auth, ProblemDetails errors | **KEEP** | |
+| Signup | ✅ public — always `User` role, duplicate rejected | **KEEP** | |
+| Forgot password | ✅ anti-enumeration response, in-memory rate limiting, `Retry-After` | **KEEP** | |
+| Reset password | ✅ tokenized (256-bit RNG, SHA-256 stored), single-use, 60-minute window | **KEEP** | |
+| Batch history | ✅ fetches real paged data from backend, pagination, run action | **KEEP** | |
+| Batch upload + `errors[]` UX | ✅ three-slot intake; per-row, per-field structured errors displayed | **KEEP** | |
+| Run workspace (match rate + 5-count breakdown) | ✅ `/runs/:runId` — match rate, Matched/Mismatched/Missing/Duplicate/Unresolved, run performance | **KEEP** | |
+| Results table | ✅ paginated, status-badged | **KEEP** | |
+| Result evidence (3-source, routed page) | ✅ `/runs/:runId/results/:resultId` — Payment · Bank · Settlement with differing field marked | **KEEP** | |
+| Exception queue + detail | ✅ paginated exception queue + routed exception detail page | **KEEP** | |
+| AI explanation panel + 503 state | ✅ below evidence; designed 503 ("AI explanation unavailable. Reconciliation result is unaffected.") | **KEEP** | |
+| Finance Assistant + tool trail | ✅ right-side rail (≥1024px) / bottom drawer (mobile); tool-call chips; scope guard; 503 state | **KEEP** | |
+| Ground-truth verification | ✅ `/runs/:runId/verify` — operator-supplied CSV → backend-authoritative PASS/FAIL | **KEEP** | |
+| Audit evidence | ✅ `AuditEvidencePanel` embedded in Run Workspace; newest-first, paginated | **KEEP** | |
+| Run performance / throughput | ✅ `durationMs` + `recordsPerSecond` from persisted timestamps; displayed on Run Workspace | **KEEP** | |
+| Synthetic Data Lab | ✅ `/data-generator` — 10 modes · 3 intensities · 4 sizes · seeded; independent ground truth | **KEEP** | |
+| Icon system | ❌ inline SVG only — no external icon library | — | deferred: no consumer requiring a library |
 
 ---
 
@@ -83,5 +89,6 @@ approval) · **DO NOT BUILD**.
 | `AiProviderRouter` retried the same failed provider | Fallback resolves by instance identity |
 | Both-AI-down surfaced as a generic 500 | Mapped to 503 |
 
-**Two genuine gaps remain**: the audit-log read endpoint and throughput instrumentation.
-Neither is a frontend problem; both are deferred backend work.
+**All major backend and frontend capabilities are now implemented.** The one remaining
+deferred item is the exception-resolution write path, which is intentionally excluded to
+avoid changing data-model semantics before the submission freeze.

@@ -14,13 +14,12 @@ import { isProblemDetails } from '../../core/models/problem-details.model';
 import { DEFAULT_POST_LOGIN_ROUTE, safeReturnUrl } from '../../core/util/return-url';
 
 /**
- * The application's only authentication entry point.
+ * The application's sign-in entry point, and the only place a session is
+ * created -- registration and password reset both end by sending the user
+ * here rather than issuing a token themselves.
  *
- * The backend exposes login and nothing else -- no registration, no refresh
- * token, no password reset, no social provider -- so this page deliberately
- * offers no sign-up link, no "forgot password" and no alternative sign-in
- * routes. Presenting any of those would imply a capability that does not
- * exist.
+ * There is still no refresh token and no social provider, so no such
+ * affordance is offered.
  */
 @Component({
   selector: 'app-login-page',
@@ -38,6 +37,20 @@ export class LoginPage implements OnInit {
   protected readonly isSubmitting = signal(false);
   protected readonly authError = signal<string | null>(null);
 
+  /**
+   * Purely a display toggle for the password field's `type` attribute --
+   * never touches the FormControl's value, so the entered password is
+   * unaffected by showing/hiding it.
+   */
+  protected readonly passwordVisible = signal(false);
+
+  /**
+   * Set from a query flag written by signup / reset completion. Neither
+   * flag carries a credential -- they exist only so this page can
+   * acknowledge what just happened.
+   */
+  protected readonly noticeMessage = signal<string | null>(null);
+
   protected readonly form = this.formBuilder.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', [Validators.required]],
@@ -47,6 +60,15 @@ export class LoginPage implements OnInit {
     // A signed-in user has no business on the login page.
     if (this.authStore.isAuthenticated()) {
       void this.router.navigateByUrl(this.resolveReturnUrl());
+      return;
+    }
+
+    const params = this.route.snapshot.queryParamMap;
+
+    if (params.get('created') === '1') {
+      this.noticeMessage.set('Account created. Sign in to continue.');
+    } else if (params.get('reset') === '1') {
+      this.noticeMessage.set('Password updated. Sign in with your new password.');
     }
   }
 
@@ -58,6 +80,10 @@ export class LoginPage implements OnInit {
   protected get passwordInvalid(): boolean {
     const control = this.form.controls.password;
     return control.invalid && control.touched;
+  }
+
+  protected togglePasswordVisibility(): void {
+    this.passwordVisible.update((visible) => !visible);
   }
 
   protected submit(): void {

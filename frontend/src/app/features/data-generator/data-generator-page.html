@@ -1,0 +1,337 @@
+<div class="lp-theme bg-[var(--lp-bg)] h-full min-h-0 flex flex-col">
+
+  <!-- ────────── Page header ────────── -->
+  <header class="border-b border-[var(--lp-border)] bg-[#FAF9F6]/90 backdrop-blur-xs px-6 py-5 shrink-0">
+    <div class="max-w-3xl">
+      <div class="flex items-center gap-2 mb-1">
+        <!-- Beaker icon -->
+        <svg class="h-5 w-5 text-[var(--lp-accent)]" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M7 2v7L3.5 16A1 1 0 0 0 4.4 17.5h11.2a1 1 0 0 0 .9-1.5L13 9V2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M7 2h6M5.5 13.5h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <h1 class="font-sans text-h2 font-bold text-[var(--lp-ink)]">Synthetic Data Lab</h1>
+      </div>
+      <p class="text-small text-[var(--lp-text-muted)]">
+        Generate realistic test data for reconciliation evaluation and demos.
+        <span class="text-[var(--lp-text-faint)]"> · Synthetic only — no production financial records are used.</span>
+      </p>
+    </div>
+  </header>
+
+  <!-- ────────── Main workspace ────────── -->
+  <div class="flex-1 overflow-y-auto px-6 py-6">
+    <div class="max-w-3xl flex flex-col gap-6">
+
+      <!-- ── Generation form card ── -->
+      <section
+        class="card-fintech bg-white border border-[var(--lp-border)] rounded-xl p-6 shadow-xs"
+        aria-label="Generation parameters"
+      >
+        <h2 class="font-sans text-h3 font-bold text-[var(--lp-ink)] mb-5">
+          Configure dataset
+        </h2>
+
+        <div class="flex flex-col gap-5">
+
+          <!-- Dataset size -->
+          <div class="flex flex-col gap-1.5">
+            <label class="text-small font-semibold text-[var(--lp-ink)]">
+              Dataset size
+            </label>
+            <div class="flex gap-2 flex-wrap" role="group" aria-label="Dataset size">
+              @for (size of sizes; track size) {
+                <button
+                  type="button"
+                  class="h-9 px-4 rounded-lg border text-small font-semibold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+                  [class]="selectedSize === size
+                    ? 'bg-[var(--lp-accent)] text-white border-[var(--lp-accent)] shadow-xs'
+                    : 'bg-white text-[var(--lp-text)] border-[var(--lp-border)] hover:border-[#8A8780] hover:bg-[#F5F3EF]'"
+                  (click)="selectedSize = size"
+                  [attr.aria-pressed]="selectedSize === size"
+                  data-testid="size-option"
+                >
+                  {{ size }} records
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Generation mode -->
+          <div class="flex flex-col gap-1.5">
+            <label for="gen-mode" class="text-small font-semibold text-[var(--lp-ink)]">
+              Generation mode
+            </label>
+            <select
+              id="gen-mode"
+              class="h-10 px-3 rounded-lg border border-[var(--lp-border)] bg-[#FAF9F6] text-[var(--lp-text)] text-small
+                     hover:border-[#8A8780] focus-visible:outline-none focus-visible:border-[var(--lp-accent)]
+                     focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]/15 transition-all cursor-pointer"
+              [(ngModel)]="selectedMode"
+              name="mode"
+              data-testid="mode-select"
+            >
+              @for (option of modeOptions; track option.value) {
+                <option [ngValue]="option.value">{{ option.label }}</option>
+              }
+            </select>
+            <!-- Mode description hint -->
+            <p class="text-meta text-[var(--lp-text-muted)]">
+              {{ modeDescription(selectedMode) }}
+            </p>
+          </div>
+
+          <!-- Corruption intensity (hidden for Clean) -->
+          @if (!isClean) {
+            <div class="flex flex-col gap-1.5">
+              <label class="text-small font-semibold text-[var(--lp-ink)]">
+                Corruption intensity
+              </label>
+              <div class="flex gap-2" role="group" aria-label="Corruption intensity">
+                @for (opt of intensityOptions; track opt.value) {
+                  <button
+                    type="button"
+                    class="h-9 px-4 rounded-lg border text-small font-semibold transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+                    [class]="selectedIntensity === opt.value
+                      ? 'bg-[var(--lp-accent)] text-white border-[var(--lp-accent)] shadow-xs'
+                      : 'bg-white text-[var(--lp-text)] border-[var(--lp-border)] hover:border-[#8A8780] hover:bg-[#F5F3EF]'"
+                    (click)="selectedIntensity = opt.value"
+                    [attr.aria-pressed]="selectedIntensity === opt.value"
+                    data-testid="intensity-option"
+                  >
+                    {{ opt.label }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Optional seed -->
+          <div class="flex flex-col gap-1.5">
+            <label for="seed-input" class="text-small font-semibold text-[var(--lp-ink)]">
+              Seed
+              <span class="font-normal text-[var(--lp-text-muted)] ml-1">(optional — leave blank for a new random seed)</span>
+            </label>
+            <input
+              id="seed-input"
+              type="text"
+              inputmode="numeric"
+              pattern="[0-9]*"
+              placeholder="e.g. 42026"
+              class="h-10 px-3 rounded-lg border border-[var(--lp-border)] bg-[#FAF9F6] text-[var(--lp-text)] text-small
+                     hover:border-[#8A8780] focus-visible:outline-none focus-visible:border-[var(--lp-accent)]
+                     focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]/15 transition-all w-48"
+              [(ngModel)]="seedInput"
+              name="seed"
+              data-testid="seed-input"
+            />
+            <p class="text-meta text-[var(--lp-text-muted)]">
+              Same seed + same configuration always produces identical files.
+            </p>
+          </div>
+
+          <!-- Error -->
+          @if (generationError()) {
+            <div
+              class="text-small font-medium text-[var(--lp-danger)] bg-[#FDF5F3] border border-[#E8D8D4] rounded-lg px-3.5 py-3 flex items-start gap-2"
+              role="alert"
+              data-testid="generation-error"
+            >
+              <svg class="h-4 w-4 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.6"/>
+                <path d="M8 5v3.5M8 11h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+              <span>{{ generationError() }}</span>
+            </div>
+          }
+
+          <!-- Generate button -->
+          <div>
+            <button
+              type="button"
+              class="btn-primary-amber h-11 px-6 text-body font-semibold flex items-center justify-center gap-2 shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+              [disabled]="isGenerating()"
+              (click)="generate()"
+              data-testid="generate-button"
+            >
+              @if (isGenerating()) {
+                <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                </svg>
+                Generating…
+              } @else {
+                <!-- Beaker icon -->
+                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                  <path d="M7 2v7L3.5 16A1 1 0 0 0 4.4 17.5h11.2a1 1 0 0 0 .9-1.5L13 9V2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M7 2h6M5.5 13.5h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                </svg>
+                Generate dataset
+              }
+            </button>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ── Result card (shown after successful generation) ── -->
+      @if (lastResult(); as result) {
+        <section
+          class="card-fintech bg-white border border-[var(--lp-border)] rounded-xl p-6 shadow-xs"
+          aria-label="Generated dataset"
+          aria-live="polite"
+          data-testid="result-section"
+        >
+          <!-- Header -->
+          <div class="flex items-center gap-2 mb-4">
+            <div class="h-7 w-7 rounded-full bg-[#E8F3F1] border border-[#C5E4DE] flex items-center justify-center text-[var(--lp-teal)]" aria-hidden="true">
+              <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none">
+                <path d="m5.5 8 1.75 1.75L10.5 6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.6"/>
+              </svg>
+            </div>
+            <h2 class="font-sans text-h3 font-bold text-[var(--lp-ink)]">Dataset generated</h2>
+          </div>
+
+          <!-- Metadata grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            <div class="bg-[#F5F3EF] rounded-lg px-3 py-2.5 border border-[var(--lp-border-subtle)]">
+              <p class="text-meta text-[var(--lp-text-faint)] uppercase font-mono mb-0.5">Seed</p>
+              <p class="text-small font-mono font-semibold text-[var(--lp-ink)]" data-testid="result-seed">
+                {{ formattedSeed(result.seed) }}
+              </p>
+            </div>
+            <div class="bg-[#F5F3EF] rounded-lg px-3 py-2.5 border border-[var(--lp-border-subtle)]">
+              <p class="text-meta text-[var(--lp-text-faint)] uppercase font-mono mb-0.5">Mode</p>
+              <p class="text-small font-semibold text-[var(--lp-ink)]" data-testid="result-mode">
+                {{ modeName(result.mode) }}
+              </p>
+            </div>
+            <div class="bg-[#F5F3EF] rounded-lg px-3 py-2.5 border border-[var(--lp-border-subtle)]">
+              <p class="text-meta text-[var(--lp-text-faint)] uppercase font-mono mb-0.5">Size</p>
+              <p class="text-small font-semibold text-[var(--lp-ink)]">{{ result.size }}</p>
+            </div>
+            <div class="bg-[#F5F3EF] rounded-lg px-3 py-2.5 border border-[var(--lp-border-subtle)]">
+              <p class="text-meta text-[var(--lp-text-faint)] uppercase font-mono mb-0.5">Corruption</p>
+              <p class="text-small font-semibold text-[var(--lp-ink)]">
+                {{ intensityLabel(result.intensity) }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Expected scenario mix -->
+          <div class="mb-5">
+            <h3 class="text-small font-semibold text-[var(--lp-ink)] mb-2">
+              Expected scenario mix
+              <span class="text-meta font-normal text-[var(--lp-text-faint)] ml-1">
+                — generation intent, not reconciliation results
+              </span>
+            </h3>
+            <div class="flex flex-wrap gap-2">
+              @for (entry of distributionEntries(result.scenarioDistribution); track entry.label) {
+                @if (entry.count > 0) {
+                  <div
+                    class="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-meta font-medium"
+                    [class]="entry.label === 'Matched'
+                      ? 'bg-[#E8F3F1] border-[#C5E4DE] text-[var(--lp-teal)]'
+                      : entry.label === 'Mismatched'
+                      ? 'bg-[#FDF5F3] border-[#E8D8D4] text-[var(--lp-danger)]'
+                      : entry.label === 'Missing'
+                      ? 'bg-[#FAF2E2] border-[#ECD9BA] text-[var(--lp-accent)]'
+                      : entry.label === 'Duplicate'
+                      ? 'bg-[#F0EDFB] border-[#D8D0EE] text-purple-600'
+                      : 'bg-[#F5F3EF] border-[var(--lp-border)] text-[var(--lp-text-muted)]'"
+                  >
+                    <span>{{ entry.label }}</span>
+                    <span class="font-mono font-bold">{{ entry.count }}</span>
+                  </div>
+                }
+              }
+            </div>
+          </div>
+
+          <!-- Divider -->
+          <div class="border-t border-[var(--lp-border-subtle)] my-4"></div>
+
+          <!-- Download section -->
+          <div>
+            <h3 class="text-small font-semibold text-[var(--lp-ink)] mb-3">
+              Download files
+            </h3>
+            <p class="text-meta text-[var(--lp-text-muted)] mb-3">
+              These files are synthetic test data only. Upload them through
+              <a routerLink="/batches/upload" class="text-[var(--lp-accent)] hover:underline underline-offset-2">
+                Batches → Upload Batch
+              </a>
+              to run reconciliation.
+            </p>
+            <div class="flex flex-wrap gap-2">
+
+              @for (file of [
+                { type: 'payments',     label: 'payments.csv',     icon: 'payment'  },
+                { type: 'bank',         label: 'bank.csv',         icon: 'bank'     },
+                { type: 'settlements',  label: 'settlements.csv',  icon: 'settle'   },
+                { type: 'ground-truth', label: 'ground-truth.csv', icon: 'gt'       }
+              ]; track file.type) {
+                <button
+                  type="button"
+                  class="h-9 px-3.5 rounded-lg border border-[var(--lp-border)] bg-[#FAF9F6] text-small
+                         font-medium text-[var(--lp-text)] hover:bg-white hover:border-[var(--lp-accent)]
+                         hover:text-[var(--lp-accent)] transition-all cursor-pointer
+                         flex items-center gap-1.5
+                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+                  [disabled]="downloadingFile() !== null"
+                  (click)="download($any(file.type))"
+                  [attr.data-testid]="'download-' + file.type"
+                >
+                  @if (downloadingFile() === file.type) {
+                    <svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    </svg>
+                  } @else {
+                    <!-- Download icon -->
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M8 2v8M5 7l3 3 3-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M2 12h12" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                    </svg>
+                  }
+                  {{ file.label }}
+                </button>
+              }
+            </div>
+          </div>
+
+          <!-- Next step hint -->
+          <div class="mt-5 pt-4 border-t border-[var(--lp-border-subtle)] flex items-center gap-2">
+            <svg class="h-4 w-4 text-[var(--lp-teal)] shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M6 8h4M8 6v4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <p class="text-small text-[var(--lp-text-muted)]">
+              Ready to test?
+              <a
+                routerLink="/batches/upload"
+                class="font-semibold text-[var(--lp-accent)] hover:text-[var(--lp-accent-hover)] underline underline-offset-2 transition-colors"
+                data-testid="upload-link"
+              >
+                Upload these files in Batches → Upload Batch
+              </a>
+              to run reconciliation and compare against the generated ground truth.
+            </p>
+          </div>
+        </section>
+      }
+
+      <!-- Synthetic data guarantee footer -->
+      <div class="text-center text-meta text-[var(--lp-text-faint)] flex items-center justify-center gap-1.5 py-2">
+        <svg class="h-3.5 w-3.5 text-[var(--lp-teal)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 1.5 2.5 4v4c0 3.5 2.5 6 5.5 6.5 3-.5 5.5-3 5.5-6.5V4L8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="m6 8 1.5 1.5L10.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Synthetic data only — never use production financial records</span>
+      </div>
+
+    </div>
+  </div>
+</div>

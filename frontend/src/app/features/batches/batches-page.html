@@ -1,47 +1,75 @@
-<div class="max-w-[1040px]">
-  <div class="flex flex-wrap items-start justify-between gap-4">
+<div class="h-full min-h-0 flex flex-col gap-6 px-6 py-8 lg:px-10 lg:py-10">
+  <!-- Page Header (fixed -- never part of the table's own scroll) -->
+  <div class="shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-[var(--lp-border-subtle)]">
     <div>
-      <h1 class="text-h1">Batches</h1>
-      <p class="text-body text-text-muted mt-2 max-w-[60ch]">
-        Upload payment, bank and settlement records for the same period, then
-        run them through reconciliation.
+      <div class="flex items-center gap-2">
+        <h1 class="text-h1 font-bold text-[var(--lp-ink)]">Batches</h1>
+        <span class="px-2 py-0.5 rounded-full bg-[#F5F3EF] border border-[var(--lp-border)] text-meta font-mono font-medium text-[var(--lp-text-muted)]">
+          Ingestion & Runs
+        </span>
+      </div>
+      <p class="text-body text-[var(--lp-text-muted)] mt-1.5 max-w-[62ch] leading-relaxed">
+        Upload payment, bank and settlement records for the same period, then run them through reconciliation.
       </p>
     </div>
 
     <a
       routerLink="/batches/upload"
-      class="h-10 px-4 inline-flex items-center rounded-md bg-ink text-on-ink
-             text-small font-semibold hover:bg-ink-strong transition-colors shrink-0"
+      class="btn-primary-amber h-10 px-4 inline-flex items-center gap-2 rounded-lg text-small font-semibold shrink-0 cursor-pointer shadow-xs"
     >
-      Upload batch
+      <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M8 10V2.5M8 2.5 5 5.5M8 2.5l3 3M2.5 10v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Upload batch</span>
     </a>
   </div>
 
-  <section class="mt-8" aria-labelledby="batch-history-heading">
-    <h2
-      id="batch-history-heading"
-      #resultsHeading
-      tabindex="-1"
-      class="text-h3 outline-none"
-    >
-      Batch history
-    </h2>
+  <!-- Batch History Section -- takes the remaining workspace height; only
+       the table viewport inside it scrolls. Header, error banner and
+       pagination all stay put. -->
+  <section aria-labelledby="batch-history-heading" class="flex-1 min-h-0 flex flex-col gap-4">
+    <div class="shrink-0 flex items-center justify-between">
+      <h2
+        id="batch-history-heading"
+        #resultsHeading
+        tabindex="-1"
+        class="text-h3 font-bold text-[var(--lp-ink)] outline-none flex items-center gap-2"
+      >
+        <span>Batch history</span>
+        @if (totalCount() > 0 && state() === 'loaded') {
+          <span class="text-meta font-mono font-normal text-[var(--lp-text-muted)]">
+            ({{ totalCount() }} total)
+          </span>
+        }
+      </h2>
+
+      @if (state() === 'loaded' && items().length > 0) {
+        <span class="text-meta text-[var(--lp-text-muted)] font-mono hidden sm:inline">
+          Server-authoritative ledger
+        </span>
+      }
+    </div>
 
     <p class="sr-only" aria-live="polite" [attr.aria-busy]="state() === 'loading'">
       {{ liveRegionText() }}
     </p>
 
+    <!-- Run Creation Error Alert -->
     @if (runCreationError()) {
       <div
         data-testid="run-creation-error"
         role="alert"
-        class="mt-4 border border-danger rounded-lg bg-danger-bg px-4 py-3
-               flex items-center justify-between gap-4"
+        class="shrink-0 border border-[var(--lp-danger)] rounded-xl bg-[#FDF5F3] px-4 py-3.5 flex items-center justify-between gap-4 shadow-xs animate-in fade-in"
       >
-        <p class="text-small font-semibold text-danger">{{ runCreationError() }}</p>
+        <div class="flex items-center gap-2.5">
+          <svg class="h-4 w-4 text-[var(--lp-danger)] shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 5.5v3M8 11.5h.01M8 1.5 14.5 13H1.5L8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <p class="text-small font-semibold text-[var(--lp-danger)]">{{ runCreationError() }}</p>
+        </div>
         <button
           type="button"
-          class="text-small font-semibold text-danger underline shrink-0"
+          class="text-meta font-semibold text-[var(--lp-danger)] hover:underline shrink-0 cursor-pointer"
           (click)="dismissRunCreationError()"
         >
           Dismiss
@@ -49,164 +77,240 @@
       </div>
     }
 
-    <div class="mt-4 overflow-x-auto">
-      @switch (state()) {
-        @case ('loading') {
-          <table class="w-full border-collapse" data-testid="batches-skeleton" aria-hidden="true">
-            <caption class="sr-only">Batch history</caption>
-            <thead>
-              <tr class="border-b border-border">
-                <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Batch</th>
-                <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Status</th>
-                <th scope="col" class="hidden lg:table-cell text-right text-meta uppercase text-text-faint py-2 pr-4">Payments</th>
-                <th scope="col" class="hidden lg:table-cell text-right text-meta uppercase text-text-faint py-2 pr-4">Bank</th>
-                <th scope="col" class="hidden lg:table-cell text-right text-meta uppercase text-text-faint py-2 pr-4">Settlements</th>
-                <th scope="col" class="text-right text-meta uppercase text-text-faint py-2 pr-4">Total</th>
-                <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Created</th>
-                <th scope="col" class="text-left text-meta uppercase text-text-faint py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (row of [1, 2, 3, 4, 5]; track row) {
-                <tr class="border-b border-border">
-                  <td class="py-3 pr-4"><span class="block h-3.5 w-32 rounded bg-surface-sunken animate-pulse"></span></td>
-                  <td class="py-3 pr-4"><span class="block h-3.5 w-16 rounded-full bg-surface-sunken animate-pulse"></span></td>
-                  <td class="hidden lg:table-cell py-3 pr-4"><span class="ml-auto block h-3.5 w-10 rounded bg-surface-sunken animate-pulse"></span></td>
-                  <td class="hidden lg:table-cell py-3 pr-4"><span class="ml-auto block h-3.5 w-10 rounded bg-surface-sunken animate-pulse"></span></td>
-                  <td class="hidden lg:table-cell py-3 pr-4"><span class="ml-auto block h-3.5 w-10 rounded bg-surface-sunken animate-pulse"></span></td>
-                  <td class="py-3 pr-4"><span class="ml-auto block h-3.5 w-12 rounded bg-surface-sunken animate-pulse"></span></td>
-                  <td class="py-3 pr-4"><span class="block h-3.5 w-36 rounded bg-surface-sunken animate-pulse"></span></td>
-                  <td class="py-3"><span class="block h-3.5 w-24 rounded bg-surface-sunken animate-pulse"></span></td>
+    <!-- Table Container / States -- fills the remaining section height;
+         the inner div (not this card) owns the scrollbar. -->
+    @switch (state()) {
+      @case ('loading') {
+        <div class="flex-1 min-h-0 flex flex-col card-fintech bg-white border border-[var(--lp-border)] rounded-xl shadow-xs overflow-hidden">
+          <div class="flex-1 min-h-0 overflow-auto">
+            <table class="w-full min-w-[810px] lg:min-w-[1080px] table-fixed border-collapse" data-testid="batches-skeleton" aria-hidden="true">
+              <caption class="sr-only">Batch history</caption>
+              <thead class="sticky top-0 z-10">
+                <tr class="border-b border-[var(--lp-border)] bg-[#FAF9F6]">
+                  <th scope="col" class="text-left text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Batch</th>
+                  <th scope="col" class="w-[110px] text-left text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Status</th>
+                  <th scope="col" class="hidden lg:table-cell w-[90px] text-right text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Payments</th>
+                  <th scope="col" class="hidden lg:table-cell w-[90px] text-right text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Bank</th>
+                  <th scope="col" class="hidden lg:table-cell w-[90px] text-right text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Settlements</th>
+                  <th scope="col" class="w-[100px] text-right text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Total</th>
+                  <th scope="col" class="w-[190px] text-left text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Created</th>
+                  <th scope="col" class="w-[190px] text-left text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Actions</th>
                 </tr>
-              }
-            </tbody>
-          </table>
-        }
-        @case ('loaded') {
-          <table class="w-full border-collapse" data-testid="batches-table">
-            <caption class="sr-only">Batch history</caption>
-            <thead>
-              <tr class="border-b border-border">
-                <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Batch</th>
-                <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Status</th>
-                <th scope="col" class="hidden lg:table-cell text-right text-meta uppercase text-text-faint py-2 pr-4">Payments</th>
-                <th scope="col" class="hidden lg:table-cell text-right text-meta uppercase text-text-faint py-2 pr-4">Bank</th>
-                <th scope="col" class="hidden lg:table-cell text-right text-meta uppercase text-text-faint py-2 pr-4">Settlements</th>
-                <th scope="col" class="text-right text-meta uppercase text-text-faint py-2 pr-4">Total</th>
-                <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Created</th>
-                <th scope="col" class="text-left text-meta uppercase text-text-faint py-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (batch of items(); track batch.batchId) {
-                <tr class="border-b border-border" data-testid="batch-row">
-                  <td class="py-3 pr-4 text-small">{{ batch.batchLabel }}</td>
-                  <td class="py-3 pr-4">
-                    <span
-                      class="inline-flex items-center rounded-full px-2.5 py-0.5 text-small font-semibold"
-                      [class]="statusBadgeClasses(batch.validationStatus)"
-                      data-testid="batch-status"
-                    >
-                      {{ batch.validationStatus }}
-                    </span>
-                  </td>
-                  <td class="hidden lg:table-cell py-3 pr-4 text-small text-right tabular">{{ batch.paymentRecordCount }}</td>
-                  <td class="hidden lg:table-cell py-3 pr-4 text-small text-right tabular">{{ batch.bankRecordCount }}</td>
-                  <td class="hidden lg:table-cell py-3 pr-4 text-small text-right tabular">{{ batch.settlementRecordCount }}</td>
-                  <td class="py-3 pr-4 text-small text-right tabular font-semibold">{{ batch.totalRecordCount }}</td>
-                  <td class="py-3 pr-4 text-small">
-                    <div>{{ batch.createdAt | date: 'MMM d, y, h:mm a' }}</div>
-                    <div class="text-text-muted">by {{ batch.createdBy }}</div>
-                  </td>
-                  <td class="py-3">
-                    @if (batch.validationStatus === 'Valid') {
-                      <button
-                        type="button"
-                        class="h-8 px-3 rounded-md border border-border-strong text-small font-semibold
-                               hover:border-text-faint disabled:opacity-45 disabled:cursor-not-allowed
-                               transition-colors"
-                        data-testid="run-reconciliation-button"
-                        [disabled]="creatingRunForBatchId() !== null"
-                        [attr.aria-busy]="creatingRunForBatchId() === batch.batchId"
-                        (click)="createRun(batch)"
+              </thead>
+              <tbody>
+                @for (row of [1, 2, 3, 4, 5]; track row) {
+                  <tr class="border-b border-[var(--lp-border-subtle)] last:border-0">
+                    <td class="py-3.5 px-4"><span class="block h-4 w-32 rounded bg-[#F5F3EF] animate-pulse"></span></td>
+                    <td class="py-3.5 px-4"><span class="block h-4 w-16 rounded-full bg-[#F5F3EF] animate-pulse"></span></td>
+                    <td class="hidden lg:table-cell py-3.5 px-4"><span class="ml-auto block h-4 w-10 rounded bg-[#F5F3EF] animate-pulse"></span></td>
+                    <td class="hidden lg:table-cell py-3.5 px-4"><span class="ml-auto block h-4 w-10 rounded bg-[#F5F3EF] animate-pulse"></span></td>
+                    <td class="hidden lg:table-cell py-3.5 px-4"><span class="ml-auto block h-4 w-10 rounded bg-[#F5F3EF] animate-pulse"></span></td>
+                    <td class="py-3.5 px-4"><span class="ml-auto block h-4 w-12 rounded bg-[#F5F3EF] animate-pulse"></span></td>
+                    <td class="py-3.5 px-4"><span class="block h-4 w-36 rounded bg-[#F5F3EF] animate-pulse"></span></td>
+                    <td class="py-3.5 px-4"><span class="block h-4 w-28 rounded bg-[#F5F3EF] animate-pulse"></span></td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      @case ('loaded') {
+        <div class="flex-1 min-h-0 flex flex-col card-fintech bg-white border border-[var(--lp-border)] rounded-xl shadow-xs overflow-hidden">
+          <div class="flex-1 min-h-0 overflow-auto">
+            <table class="w-full min-w-[810px] lg:min-w-[1080px] table-fixed border-collapse" data-testid="batches-table">
+              <caption class="sr-only">Batch history</caption>
+              <thead class="sticky top-0 z-10">
+                <tr class="border-b border-[var(--lp-border)] bg-[#FAF9F6]">
+                  <th scope="col" class="text-left text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Batch</th>
+                  <th scope="col" class="w-[110px] text-left text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Status</th>
+                  <th scope="col" class="hidden lg:table-cell w-[90px] text-right text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Payments</th>
+                  <th scope="col" class="hidden lg:table-cell w-[90px] text-right text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Bank</th>
+                  <th scope="col" class="hidden lg:table-cell w-[90px] text-right text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Settlements</th>
+                  <th scope="col" class="w-[100px] text-right text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Total</th>
+                  <th scope="col" class="w-[190px] text-left text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Created</th>
+                  <th scope="col" class="w-[190px] text-left text-meta uppercase font-mono text-[var(--lp-text-muted)] py-3 px-4">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (batch of items(); track batch.batchId) {
+                  <tr class="border-b border-[var(--lp-border-subtle)] last:border-0 hover:bg-[#FAF9F6]/80 transition-colors" data-testid="batch-row">
+                    <!-- Batch label -- the one flexible column; absorbs
+                         whatever width the fixed-width columns leave. -->
+                    <td class="py-3.5 px-4 align-top">
+                      <div class="text-small font-semibold text-[var(--lp-ink)] break-words">{{ batch.batchLabel }}</div>
+                      <div class="text-meta font-mono text-[var(--lp-text-faint)] truncate max-w-full" [title]="batch.batchId">
+                        {{ batch.batchId }}
+                      </div>
+                    </td>
+
+                    <!-- Status badge -->
+                    <td class="py-3.5 px-4 align-top">
+                      <span
+                        class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-meta font-semibold"
+                        [class]="statusBadgeClasses(batch.validationStatus)"
+                        data-testid="batch-status"
                       >
-                        {{ creatingRunForBatchId() === batch.batchId ? 'Running…' : 'Run reconciliation' }}
-                      </button>
-                    } @else {
-                      <span class="text-small text-text-faint">—</span>
-                    }
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        }
-        @case ('empty') {
-          <div
-            data-testid="batches-empty"
-            class="border border-border rounded-lg bg-surface px-6 py-12
-                   flex flex-col items-center text-center gap-2"
-          >
-            <p class="text-h3">No batches found</p>
-            <p class="text-small text-text-muted max-w-[46ch]">
-              No batches have been ingested yet. Batches will appear here once
-              they exist.
+                        <span class="h-1.5 w-1.5 rounded-full" [class.bg-[var(--lp-teal)]]="batch.validationStatus === 'Valid'" [class.bg-[var(--lp-danger)]]="batch.validationStatus !== 'Valid'"></span>
+                        {{ batch.validationStatus }}
+                      </span>
+                    </td>
+
+                    <!-- Counts -->
+                    <td class="hidden lg:table-cell py-3.5 px-4 align-top text-small text-right tabular font-mono text-[var(--lp-text-muted)]">{{ batch.paymentRecordCount }}</td>
+                    <td class="hidden lg:table-cell py-3.5 px-4 align-top text-small text-right tabular font-mono text-[var(--lp-text-muted)]">{{ batch.bankRecordCount }}</td>
+                    <td class="hidden lg:table-cell py-3.5 px-4 align-top text-small text-right tabular font-mono text-[var(--lp-text-muted)]">{{ batch.settlementRecordCount }}</td>
+                    <td class="py-3.5 px-4 align-top text-small text-right tabular font-mono font-bold text-[var(--lp-ink)]">{{ batch.totalRecordCount }}</td>
+
+                    <!-- Created metadata -->
+                    <td class="py-3.5 px-4 align-top text-small">
+                      <div class="font-medium text-[var(--lp-ink)] whitespace-nowrap">{{ batch.createdAt | date: 'MMM d, y, h:mm a' }}</div>
+                      <div class="text-meta text-[var(--lp-text-muted)] truncate max-w-full" [title]="'by ' + batch.createdBy">
+                        by {{ batch.createdBy }}
+                      </div>
+                    </td>
+
+                    <!-- Actions -->
+                    <td class="py-3.5 px-4 align-top whitespace-nowrap">
+                      @if (batch.validationStatus === 'Valid') {
+                        <button
+                          type="button"
+                          class="h-8 px-3 rounded-lg border border-[var(--lp-border-strong)] bg-white text-small font-semibold
+                                 hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] hover:bg-[#FAF2E2]/30 hover:-translate-y-0.5
+                                 active:scale-98 active:translate-y-0
+                                 disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:border-[var(--lp-border-strong)] disabled:hover:text-inherit disabled:hover:bg-white disabled:hover:translate-y-0
+                                 transition-all duration-200 inline-flex items-center gap-1.5 cursor-pointer shadow-2xs
+                                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+                          data-testid="run-reconciliation-button"
+                          [disabled]="creatingRunForBatchId() !== null"
+                          [attr.aria-busy]="creatingRunForBatchId() === batch.batchId"
+                          (click)="createRun(batch)"
+                        >
+                          @if (creatingRunForBatchId() === batch.batchId) {
+                            <svg class="h-3.5 w-3.5 animate-spin text-[var(--lp-accent)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                              <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" stroke-dasharray="28" stroke-dashoffset="10"/>
+                            </svg>
+                            <span>Running…</span>
+                          } @else {
+                            <svg class="h-3.5 w-3.5 text-[var(--lp-accent)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                              <path d="M4 3.5 12.5 8 4 12.5V3.5Z" fill="currentColor"/>
+                            </svg>
+                            <span>Run reconciliation</span>
+                          }
+                        </button>
+                      } @else {
+                        <span class="text-small text-[var(--lp-text-faint)] font-mono">—</span>
+                      }
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+
+      @case ('empty') {
+        <div
+          data-testid="batches-empty"
+          class="flex-1 min-h-0 card-fintech border border-[var(--lp-border)] rounded-xl bg-white px-6 py-12 flex flex-col items-center justify-center text-center gap-4 shadow-xs"
+        >
+          <div class="h-12 w-12 rounded-full bg-[#F5F3EF] border border-[var(--lp-border)] flex items-center justify-center text-[var(--lp-accent)] shadow-2xs">
+            <svg class="h-6 w-6" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M2 4.5 8 2l6 2.5L8 7 2 4.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M2 8l6 2.5L14 8M2 11.5l6 2.5 6-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-h3 font-bold text-[var(--lp-ink)]">No batches found</p>
+            <p class="text-small text-[var(--lp-text-muted)] max-w-[46ch] mt-1">
+              No batches have been ingested yet. Batches will appear here once you upload matching financial records.
             </p>
           </div>
-        }
-        @case ('error') {
-          <div
-            data-testid="batches-error"
-            class="border border-danger rounded-lg bg-danger-bg px-6 py-8
-                   flex flex-col items-center text-center gap-3"
-            role="alert"
+          <a
+            routerLink="/batches/upload"
+            class="btn-primary-amber h-10 px-4 inline-flex items-center gap-2 rounded-lg text-small font-semibold cursor-pointer shadow-xs mt-2"
           >
-            <p class="text-body font-semibold text-danger">{{ errorMessage() }}</p>
-            <button
-              type="button"
-              class="h-10 px-4 rounded-md bg-ink text-on-ink text-small font-semibold
-                     hover:bg-ink-strong transition-colors"
-              (click)="retry()"
-            >
-              Retry
-            </button>
-          </div>
-        }
+            <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M8 10V2.5M8 2.5 5 5.5M8 2.5l3 3M2.5 10v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Upload batch</span>
+          </a>
+        </div>
       }
-    </div>
 
+      @case ('error') {
+        <div
+          data-testid="batches-error"
+          class="flex-1 min-h-0 card-fintech border border-[var(--lp-danger)] rounded-xl bg-[#FDF5F3] px-6 py-8 flex flex-col items-center justify-center text-center gap-4 shadow-xs"
+          role="alert"
+        >
+          <div class="h-10 w-10 rounded-full bg-[#FAF2E2] border border-[#ECD9BA] flex items-center justify-center text-[var(--lp-danger)]">
+            <svg class="h-5 w-5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M8 5.5v3M8 11.5h.01M8 1.5 14.5 13H1.5L8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-body font-semibold text-[var(--lp-danger)]">{{ errorMessage() }}</p>
+            <p class="text-meta text-[var(--lp-text-muted)] mt-1">
+              Please check your connection and retry the request.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="h-10 px-4 rounded-lg bg-[var(--lp-ink)] text-white text-small font-semibold hover:bg-black active:scale-98 transition-all inline-flex items-center gap-2 cursor-pointer shadow-xs"
+            (click)="retry()"
+          >
+            <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M2.5 8a5.5 5.5 0 0 1 9.39-3.89L13.5 5.5M13.5 2v3.5H10M13.5 8a5.5 5.5 0 0 1-9.39 3.89L2.5 10.5M2.5 14v-3.5H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Retry</span>
+          </button>
+        </div>
+      }
+    }
+
+    <!-- Pagination Navigation -- always below the scrollable viewport,
+         never scrolled away with the rows. -->
     @if (totalPages() > 1) {
       <nav
-        class="mt-4 flex items-center justify-between gap-4"
+        class="shrink-0 flex items-center justify-between gap-4 px-1"
         aria-label="Batch pages"
         data-testid="batches-pagination"
       >
         <button
           type="button"
-          class="h-9 px-3 rounded-md border border-border-strong text-small font-semibold
-                 hover:border-text-faint disabled:opacity-45 disabled:cursor-not-allowed
-                 transition-colors"
+          class="h-9 px-3.5 rounded-lg border border-[var(--lp-border-strong)] bg-white text-small font-semibold
+                 hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:border-[var(--lp-border-strong)] disabled:hover:text-inherit
+                 transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
           [disabled]="state() === 'loading' || pageNumber() <= 1"
           [attr.aria-disabled]="state() === 'loading' || pageNumber() <= 1"
           (click)="previousPage()"
         >
-          Previous
+          <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M10 3.5 5.5 8 10 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Previous</span>
         </button>
 
-        <span class="text-small text-text-muted tabular">
-          Page {{ pageNumber() }} of {{ totalPages() }}
+        <span class="text-small text-[var(--lp-text-muted)] font-mono tabular">
+          Page <strong class="font-bold text-[var(--lp-ink)]">{{ pageNumber() }}</strong> of <strong class="font-bold text-[var(--lp-ink)]">{{ totalPages() }}</strong>
         </span>
 
         <button
           type="button"
-          class="h-9 px-3 rounded-md border border-border-strong text-small font-semibold
-                 hover:border-text-faint disabled:opacity-45 disabled:cursor-not-allowed
-                 transition-colors"
+          class="h-9 px-3.5 rounded-lg border border-[var(--lp-border-strong)] bg-white text-small font-semibold
+                 hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:border-[var(--lp-border-strong)] disabled:hover:text-inherit
+                 transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
           [disabled]="state() === 'loading' || pageNumber() >= totalPages()"
           [attr.aria-disabled]="state() === 'loading' || pageNumber() >= totalPages()"
           (click)="nextPage()"
         >
-          Next
+          <span>Next</span>
+          <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </button>
       </nav>
     }

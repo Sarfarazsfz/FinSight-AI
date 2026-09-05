@@ -35,6 +35,13 @@ type ExceptionsPageState = 'loading' | 'loaded' | 'empty' | 'not-found' | 'error
   imports: [DatePipe, RouterLink],
   templateUrl: './exceptions-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    // Same rationale as ResultsPage/BatchesPage: this queue can hold up
+    // to PAGE_SIZE (50) rows, so it needs the same contained-scroll
+    // architecture -- the inner table viewport, not the browser page,
+    // owns vertical scrolling once there are many exceptions.
+    class: 'flex-1 min-h-0 flex flex-col',
+  },
 })
 export class ExceptionsPage implements OnInit {
   private readonly route = inject(ActivatedRoute);

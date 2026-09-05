@@ -73,6 +73,14 @@ interface AiExplanationView {
   imports: [DatePipe, RouterLink],
   templateUrl: './exception-detail-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    // See BatchesPage for the full rationale. This page is a naturally
+    // document-flowing investigation view (classification, AI panel,
+    // evidence cards), so page-level vertical scroll is appropriate --
+    // this binding only establishes correct height participation inside
+    // AppShell's <main>.
+    class: 'flex-1 min-h-0 flex flex-col',
+  },
 })
 export class ExceptionDetailPage implements OnInit {
   private readonly route = inject(ActivatedRoute);

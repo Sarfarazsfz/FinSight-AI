@@ -117,13 +117,30 @@ describe('LoginPage', () => {
     expect(el().querySelector('#password')).toBeTruthy();
     expect(el().querySelector('button[type="submit"]')).toBeTruthy();
 
-    // No capability the backend does not have.
+    // Signup and password reset are now real AuthController actions, so
+    // links to them are legitimate. What must still be absent is any
+    // capability the backend genuinely lacks.
     const text = el().textContent!.toLowerCase();
-    expect(text).not.toContain('sign up');
-    expect(text).not.toContain('create account');
-    expect(text).not.toContain('forgot');
     expect(text).not.toContain('google');
+    expect(text).not.toContain('single sign-on');
     expect(text).not.toContain('track 04');
+  });
+
+  it('links to the real signup and password-reset routes', () => {
+    configure();
+
+    const signup = el().querySelector<HTMLAnchorElement>(
+      '[data-testid="login-create-account"]',
+    );
+    const forgot = el().querySelector<HTMLAnchorElement>(
+      '[data-testid="login-forgot-password"]',
+    );
+
+    expect(signup).toBeTruthy();
+    expect(signup!.getAttribute('href')).toBe('/signup');
+
+    expect(forgot).toBeTruthy();
+    expect(forgot!.getAttribute('href')).toBe('/forgot-password');
   });
 
   it('blocks submission and shows field errors when empty', () => {
@@ -247,5 +264,95 @@ describe('LoginPage', () => {
 
     expect(store.isAuthenticated()).toBeTrue();
     expect(navigateByUrl).toHaveBeenCalledWith('/batches');
+  });
+
+  describe('password visibility toggle', () => {
+    function toggleButton(): HTMLButtonElement {
+      return el().querySelector<HTMLButtonElement>(
+        '[data-testid="toggle-password-visibility"]',
+      )!;
+    }
+
+    function passwordInput(): HTMLInputElement {
+      return el().querySelector<HTMLInputElement>('#password')!;
+    }
+
+    it('starts masked', () => {
+      configure();
+      expect(passwordInput().type).toBe('password');
+    });
+
+    it('renders an eye control with an accessible label', () => {
+      configure();
+      const button = toggleButton();
+
+      expect(button).toBeTruthy();
+      expect(button.getAttribute('type')).toBe('button');
+      expect(button.getAttribute('aria-label')).toBe('Show password');
+      expect(button.getAttribute('aria-pressed')).toBe('false');
+    });
+
+    it('reveals the entered password on click, without changing its value', () => {
+      configure();
+      setCredentials('operator@finsight.test', 'super-secret-pw');
+
+      toggleButton().click();
+      fixture.detectChanges();
+
+      expect(passwordInput().type).toBe('text');
+      expect(passwordInput().value).toBe('super-secret-pw');
+    });
+
+    it('hides the password again on a second click, value still unchanged', () => {
+      configure();
+      setCredentials('operator@finsight.test', 'super-secret-pw');
+
+      toggleButton().click();
+      fixture.detectChanges();
+      toggleButton().click();
+      fixture.detectChanges();
+
+      expect(passwordInput().type).toBe('password');
+      expect(passwordInput().value).toBe('super-secret-pw');
+    });
+
+    it('updates the accessible label and pressed state when toggled', () => {
+      configure();
+
+      toggleButton().click();
+      fixture.detectChanges();
+
+      const button = toggleButton();
+      expect(button.getAttribute('aria-label')).toBe('Hide password');
+      expect(button.getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('does not reset the form or clear other fields when toggled', () => {
+      configure();
+      setCredentials('operator@finsight.test', 'super-secret-pw');
+
+      toggleButton().click();
+      fixture.detectChanges();
+
+      expect(el().querySelector<HTMLInputElement>('#email')!.value).toBe(
+        'operator@finsight.test',
+      );
+    });
+
+    it('is keyboard activatable (a real <button>, not a div/span)', () => {
+      configure();
+      expect(toggleButton().tagName).toBe('BUTTON');
+    });
+
+    it('does not affect password validation behavior', () => {
+      configure();
+      submit();
+
+      toggleButton().click();
+      fixture.detectChanges();
+
+      expect(el().querySelector('#password-error')).toBeTruthy();
+      httpMock.expectNone(LOGIN_URL);
+    });
   });
 });

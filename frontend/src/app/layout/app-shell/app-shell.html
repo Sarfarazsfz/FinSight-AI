@@ -1,81 +1,287 @@
-<div class="min-h-screen bg-bg text-text flex flex-col lg:flex-row">
+<div class="lp-theme bg-[var(--lp-bg)] text-[var(--lp-text)] min-h-screen lg:h-screen lg:overflow-hidden flex flex-col lg:flex-row selection:bg-[#FAF2E2] selection:text-[#171717]">
   <a
     class="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:top-4
-           focus-visible:left-4 focus-visible:z-50 focus-visible:bg-ink
-           focus-visible:text-on-ink focus-visible:px-4 focus-visible:py-2
-           focus-visible:rounded-md"
+           focus-visible:left-4 focus-visible:z-50 focus-visible:bg-[var(--lp-accent)]
+           focus-visible:text-white focus-visible:px-4 focus-visible:py-2
+           focus-visible:rounded-md focus-visible:font-semibold shadow-md"
     href="#main-content"
   >
     Skip to content
   </a>
 
-  <!-- Compact top bar below the rail breakpoint -->
-  <header
-    class="lg:hidden border-b border-border bg-surface px-6 h-16
-           flex items-center justify-between"
-  >
-    <a routerLink="/batches" class="text-h3 tracking-tight">FinSight</a>
+  <!-- Compact top bar on mobile/tablet (< lg) -->
+  <header class="lg:hidden sticky top-0 z-30 border-b border-[var(--lp-border)] bg-[#FAF9F6]/95 backdrop-blur-xs px-5 h-14 flex items-center justify-between">
+    <a routerLink="/batches" class="flex items-center gap-1.5 focus-visible:outline-none" aria-label="FinSight AI Batches">
+      <span class="font-sans text-[18px] font-bold tracking-tight text-[var(--lp-ink)]">
+        FinSight
+      </span>
+      <span class="font-sans text-[18px] font-semibold uppercase tracking-wide text-[var(--lp-accent)]">
+        AI
+      </span>
+    </a>
 
-    <div class="flex items-center gap-4">
-      <span class="text-small text-text-muted hidden sm:inline">{{ userEmail() }}</span>
+    <div class="flex items-center gap-3">
+      <span class="text-meta text-[var(--lp-text-muted)] hidden sm:inline truncate max-w-[180px]">{{ userEmail() }}</span>
       <button
         type="button"
-        class="text-small font-semibold text-text-muted hover:text-text px-2 py-1 rounded-sm"
-        (click)="logout()"
+        class="h-8 px-2.5 rounded-md border border-[var(--lp-border)] bg-white text-meta font-semibold text-[var(--lp-text-muted)] hover:text-[var(--lp-danger)] hover:border-[#E8D8D4] hover:bg-[#FDF5F3] transition-all cursor-pointer flex items-center gap-1"
+        (click)="openLogoutDialog($event)"
+        aria-haspopup="dialog"
+        [attr.aria-expanded]="isLogoutDialogOpen()"
       >
+        <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M6 13H3.333A1.333 1.333 0 0 1 2 11.667V4.333C2 3.597 2.597 3 3.333 3H6M10.667 11.333 14 8l-3.333-3.333M14 8H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
         Log out
       </button>
     </div>
   </header>
 
-  <nav
-    class="lg:hidden border-b border-border bg-surface px-6 py-2 flex gap-4"
-    aria-label="Primary"
-  >
+  <!-- Mobile navigation tabs (< lg) -->
+  <nav class="lg:hidden border-b border-[var(--lp-border-subtle)] bg-[#F5F3EF] px-5 py-1.5 flex gap-2" aria-label="Primary">
     @for (item of navItems; track item.link) {
       <a
         [routerLink]="item.link"
-        routerLinkActive="text-text font-semibold"
-        class="text-small text-text-muted py-1"
+        routerLinkActive="bg-white text-[var(--lp-ink)] font-semibold shadow-2xs border border-[var(--lp-border)]"
+        class="text-small text-[var(--lp-text-muted)] px-3 py-1 rounded-md transition-all flex items-center gap-1.5"
       >
+        @if (item.icon === 'data-generator') {
+          <!-- Beaker icon for Synthetic Data -->
+          <svg class="h-3.5 w-3.5 text-[var(--lp-accent)]" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M7 2v7L3.5 16A1 1 0 0 0 4.4 17.5h11.2a1 1 0 0 0 .9-1.5L13 9V2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M7 2h6M5.5 13.5h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        } @else {
+          <!-- Layers icon for Batches -->
+          <svg class="h-3.5 w-3.5 text-[var(--lp-accent)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M2 4.5 8 2l6 2.5L8 7 2 4.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M2 8l6 2.5L14 8M2 11.5l6 2.5 6-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        }
         {{ item.label }}
       </a>
     }
   </nav>
 
-  <!-- Left rail from lg upward -->
+  <!-- Fixed Desktop Sidebar (>= lg) -- collapsible icon rail / full nav -->
   <aside
-    class="hidden lg:flex lg:flex-col w-[232px] shrink-0 border-r border-border px-4 py-6 gap-8"
+    class="hidden lg:flex lg:flex-col shrink-0 h-screen sticky top-0 border-r border-[var(--lp-border)]
+           bg-[#FAF9F6] py-5 justify-between select-none overflow-hidden
+           transition-[width,padding] duration-200 ease-out"
+    [class.w-60]="!isSidebarCollapsed()"
+    [class.px-4]="!isSidebarCollapsed()"
+    [class.w-[68px]]="isSidebarCollapsed()"
+    [class.px-2]="isSidebarCollapsed()"
+    data-testid="app-sidebar"
   >
-    <a routerLink="/batches" class="text-h3 tracking-tight px-3">FinSight</a>
+    <div class="flex flex-col gap-6 min-w-0">
+      <!--
+        Sidebar header (UI-7E).
 
-    <nav class="flex-1 flex flex-col gap-1" aria-label="Primary">
-      @for (item of navItems; track item.link) {
-        <a
-          [routerLink]="item.link"
-          routerLinkActive="bg-surface text-text font-semibold shadow-[inset_2px_0_0_var(--color-accent)]"
-          class="px-3 py-2 rounded-sm text-small text-text-muted
-                 hover:bg-surface hover:text-text transition-colors"
+        Branding and the collapse/expand control are separate concerns
+        again: the FinSight lockup is branding (and a home link, matching
+        the mobile top bar), and one dedicated button owns the toggle.
+
+        That button is a SINGLE element in both states -- only its glyph
+        and position change (X on the right while expanded, hamburger
+        centered while collapsed). Rendering two separate buttons would
+        put two toggle targets in the DOM and break the "one control"
+        rule; swapping the icon inside one button keeps focus, keyboard
+        behavior and the accessible name on a single stable node.
+
+        The whole brand lockup is dropped from the collapsed rail: at 68px
+        there is no room for the wordmark, and squeezing the F mark to fit
+        beside a control looks worse than a clean icon rail.
+      -->
+      <div
+        class="pt-1 flex items-center gap-2"
+        [class.justify-between]="!isSidebarCollapsed()"
+        [class.justify-center]="isSidebarCollapsed()"
+      >
+        @if (!isSidebarCollapsed()) {
+          <a
+            routerLink="/batches"
+            class="flex items-center gap-2 min-w-0 rounded-lg focus-visible:outline-none
+                   focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+            aria-label="FinSight AI Home"
+          >
+            <span
+              class="h-8 w-8 shrink-0 rounded-lg bg-[var(--lp-ink)] text-white flex items-center justify-center
+                     font-sans text-[15px] font-bold shadow-2xs"
+              aria-hidden="true"
+            >F</span>
+            <span aria-hidden="true" class="flex items-center gap-1.5 whitespace-nowrap">
+              <span class="font-sans text-[20px] font-bold tracking-tight text-[var(--lp-ink)]">FinSight</span>
+              <span class="font-sans text-[20px] font-semibold uppercase tracking-wide text-[var(--lp-accent)]">AI</span>
+            </span>
+          </a>
+        }
+
+        <button
+          type="button"
+          (click)="toggleSidebar()"
+          [attr.aria-expanded]="!isSidebarCollapsed()"
+          [attr.aria-label]="isSidebarCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+          [title]="isSidebarCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+          class="h-8 w-8 shrink-0 rounded-lg border border-[var(--lp-border)] bg-white text-[var(--lp-text-muted)]
+                 hover:text-[var(--lp-ink)] hover:bg-[#F5F3EF] hover:border-[var(--lp-border-strong)] hover:-translate-y-px
+                 active:scale-98 active:translate-y-0
+                 transition-all duration-200 inline-flex items-center justify-center cursor-pointer shadow-2xs
+                 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+          data-testid="sidebar-toggle"
         >
-          {{ item.label }}
-        </a>
-      }
-    </nav>
+          @if (isSidebarCollapsed()) {
+            <!-- Hamburger: reopens the rail. Always rendered while collapsed. -->
+            <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true" data-testid="sidebar-toggle-icon-menu">
+              <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          } @else {
+            <!-- Close: collapses the rail. -->
+            <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true" data-testid="sidebar-toggle-icon-close">
+              <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          }
+        </button>
+      </div>
 
-    <div class="border-t border-border pt-4 flex flex-col gap-2">
-      <span class="px-3 text-small text-text-muted break-words">{{ userEmail() }}</span>
+      <!-- Navigation Links -->
+      <nav class="flex flex-col gap-1" aria-label="Primary">
+        @for (item of navItems; track item.link) {
+          <a
+            [routerLink]="item.link"
+            [attr.aria-label]="item.label"
+            [title]="isSidebarCollapsed() ? item.label : null"
+            routerLinkActive="bg-white text-[var(--lp-ink)] font-semibold shadow-2xs border border-[var(--lp-border)] border-l-4 border-l-[var(--lp-accent)]"
+            class="px-3 py-2 rounded-lg text-small text-[var(--lp-text-muted)] hover:bg-white/70 hover:text-[var(--lp-ink)] transition-all flex items-center gap-2.5 cursor-pointer overflow-hidden"
+            [class.justify-center]="isSidebarCollapsed()"
+          >
+            @if (item.icon === 'data-generator') {
+              <!-- Beaker icon for Synthetic Data -->
+              <svg class="h-4 w-4 text-[var(--lp-accent)] shrink-0" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                <path d="M7 2v7L3.5 16A1 1 0 0 0 4.4 17.5h11.2a1 1 0 0 0 .9-1.5L13 9V2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M7 2h6M5.5 13.5h9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+              </svg>
+            } @else {
+              <!-- Layers icon for Batches -->
+              <svg class="h-4 w-4 text-[var(--lp-accent)] shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M2 4.5 8 2l6 2.5L8 7 2 4.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M2 8l6 2.5L14 8M2 11.5l6 2.5 6-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            }
+            <span
+              aria-hidden="true"
+              class="whitespace-nowrap overflow-hidden transition-[opacity,width] duration-200"
+              [class.opacity-0]="isSidebarCollapsed()"
+              [class.w-0]="isSidebarCollapsed()"
+            >{{ item.label }}</span>
+          </a>
+        }
+      </nav>
+    </div>
+
+    <!-- Bottom User Profile & Stable Logout -->
+    <div class="border-t border-[var(--lp-border-subtle)] pt-4 flex flex-col gap-2 min-w-0">
+      <div
+        class="px-3 py-2 rounded-lg bg-[#F5F3EF] border border-[var(--lp-border-subtle)] flex items-center gap-2.5 overflow-hidden"
+        [class.justify-center]="isSidebarCollapsed()"
+        [title]="isSidebarCollapsed() ? (userEmail() ?? 'Operator') : null"
+      >
+        <div class="h-7 w-7 rounded-full bg-white border border-[var(--lp-border)] flex items-center justify-center text-[11px] font-bold font-mono text-[var(--lp-ink)] shrink-0 shadow-2xs" aria-hidden="true">
+          OP
+        </div>
+        <div
+          class="min-w-0 flex-1 overflow-hidden transition-[opacity,width] duration-200"
+          [class.opacity-0]="isSidebarCollapsed()"
+          [class.w-0]="isSidebarCollapsed()"
+          [class.flex-1]="!isSidebarCollapsed()"
+        >
+          <p class="text-meta text-[var(--lp-text-faint)] leading-tight uppercase font-mono whitespace-nowrap">Operator</p>
+          <p class="text-small font-medium text-[var(--lp-ink)] truncate" [title]="userEmail() ?? ''">{{ userEmail() }}</p>
+        </div>
+      </div>
+
       <button
         type="button"
-        class="px-3 py-2 rounded-sm text-small font-semibold text-text-muted
-               text-left hover:bg-surface hover:text-text transition-colors"
-        (click)="logout()"
+        class="w-full px-3 py-2 rounded-lg text-small font-semibold text-[var(--lp-text-muted)] hover:text-[var(--lp-danger)] hover:bg-[#FDF5F3] hover:border-[#E8D8D4] border border-transparent transition-all cursor-pointer flex items-center gap-2 text-left overflow-hidden"
+        [class.justify-center]="isSidebarCollapsed()"
+        (click)="openLogoutDialog($event)"
+        aria-haspopup="dialog"
+        [attr.aria-expanded]="isLogoutDialogOpen()"
+        aria-label="Log out"
+        [title]="isSidebarCollapsed() ? 'Log out' : null"
+        data-testid="sidebar-logout-button"
       >
-        Log out
+        <svg class="h-4 w-4 shrink-0 text-current" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M6 13H3.333A1.333 1.333 0 0 1 2 11.667V4.333C2 3.597 2.597 3 3.333 3H6M10.667 11.333 14 8l-3.333-3.333M14 8H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span
+          aria-hidden="true"
+          class="whitespace-nowrap overflow-hidden transition-[opacity,width] duration-200"
+          [class.opacity-0]="isSidebarCollapsed()"
+          [class.w-0]="isSidebarCollapsed()"
+        >Log out</span>
       </button>
     </div>
   </aside>
 
-  <main id="main-content" class="flex-1 min-w-0 px-6 py-8 lg:px-12 lg:py-12">
+  <!-- Main Scrollable Workspace Container -->
+  <main id="main-content" class="flex-1 min-w-0 min-h-0 lg:h-screen lg:overflow-hidden flex flex-col">
     <router-outlet />
   </main>
+
+  <!-- Logout Confirmation Dialog Modal -->
+  @if (isLogoutDialogOpen()) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/35 backdrop-blur-xs animate-in fade-in duration-200"
+      (click)="onBackdropClick($event)"
+      (keydown.escape)="cancelLogout()"
+      role="presentation"
+    >
+      <div
+        #logoutDialog
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="logout-dialog-title"
+        aria-describedby="logout-dialog-desc"
+        class="card-fintech w-full max-w-[400px] p-6 bg-white border border-[var(--lp-border)] rounded-xl shadow-lg flex flex-col gap-4 animate-in zoom-in-95 duration-200"
+        (keydown)="onDialogKeydown($event)"
+      >
+        <div class="flex items-start gap-3.5">
+          <div class="h-10 w-10 rounded-full bg-[#FAF2E2] border border-[#ECD9BA] flex items-center justify-center text-[var(--lp-accent)] shrink-0 shadow-2xs">
+            <svg class="h-5 w-5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M6 13H3.333A1.333 1.333 0 0 1 2 11.667V4.333C2 3.597 2.597 3 3.333 3H6M10.667 11.333 14 8l-3.333-3.333M14 8H6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <h2 id="logout-dialog-title" class="font-sans text-h3 font-bold text-[var(--lp-ink)]">
+              Sign out of FinSight?
+            </h2>
+            <p id="logout-dialog-desc" class="text-small text-[var(--lp-text-muted)] mt-1 leading-relaxed">
+              Are you sure you want to sign out? You will need to enter your credentials to access batches again.
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-2 flex items-center justify-end gap-3 pt-3 border-t border-[var(--lp-border-subtle)]">
+          <button
+            #cancelButton
+            type="button"
+            class="h-10 px-4 rounded-lg border border-[var(--lp-border)] bg-white text-small font-semibold text-[var(--lp-text)] hover:bg-[#F5F3EF] hover:border-[#8A8780] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+            (click)="cancelLogout()"
+          >
+            Cancel
+          </button>
+          <button
+            #confirmButton
+            type="button"
+            class="btn-primary-amber h-10 px-4 text-small font-semibold shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+            (click)="confirmLogout()"
+            data-testid="confirm-logout-button"
+          >
+            Confirm logout
+          </button>
+        </div>
+      </div>
+    </div>
+  }
 </div>

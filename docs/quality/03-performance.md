@@ -5,37 +5,61 @@ trace to a real measurement of a real run.
 
 ---
 
-## Backend throughput — an open gap
-
-`[CODE]` **No timing instrumentation exists.** No `Stopwatch`, metrics counter, or
-equivalent appears in `ReconciliationOrchestrator` or its dependencies.
+## Backend throughput — measured and surfaced
 
 `[OFFICIAL WEB]` The official bar is *"Throughput plus measured accuracy plus an honest
-exception list."* Throughput is named explicitly, so this is **not** a cosmetic gap.
+exception list."* Throughput is named explicitly.
 
-### Status: DEFERRED — requires an explicit decision
+### Status: MEASURED
 
-The backend is frozen. Adding instrumentation is a **separate, separately-approved**
-backend change, never bundled into a frontend phase. Two honest options:
+Two independent, real measurements exist. Neither is estimated.
 
-| Option | Consequence |
-|---|---|
-| **Instrument it** | A small, additive `Stopwatch` around the existing orchestration call. No algorithmic change. Yields a real, quotable figure. |
-| **Do not instrument it** | Say so plainly. Never estimate, never imply a number. "We did not measure throughput" is credible; a fabricated figure is not. |
+| Source | Where | Reachable? |
+|---|---|---|
+| `Stopwatch` in `ReconciliationOrchestrator` | Writes `duration_ms` and `records_per_second` into the `ReconciliationCompleted` audit payload | **Yes** — `IAuditLogReader` (read-only, ownership-scoped) exposes it on `GET /api/reconciliation/runs/{runId}/audit`, also rendered in the Run Workspace's "Audit evidence" section |
+| `ReconciliationRun.StartedAt` → `CompletedAt` | Persisted on the run row | **Yes** — surfaced as `durationMs` / `recordsPerSecond` on `GET /api/reconciliation/runs/{runId}/summary` |
 
-**Do not resolve this silently.** Decide it deliberately before the demo — see
-[delivery/02-demo-runbook.md](../delivery/02-demo-runbook.md).
+These two figures measure genuinely overlapping-but-not-identical windows — the audit
+`Stopwatch` starts before the batch lookup and stops before the run's row is persisted;
+`StartedAt`/`CompletedAt` bracket a slightly narrower span — so they can legitimately
+differ by the batch lookup's own latency. Neither is recomputed from the other, and
+neither is treated as more authoritative; both are shown as what they are: independent
+wall-clock measurements of the same run.
 
-### If measured — the protocol
+`StartedAt` is stamped when the run is constructed and `CompletedAt` when it completes, so
+the interval brackets the matching and classification loop. `ReconciliationSummaryBuilder`
+computes both fields server-side; the frontend performs no timing arithmetic.
+
+`[CODE]` Zero-duration and not-yet-completed runs return **null**, never `0` and never a
+fabricated rate. The Run Workspace renders "This run has not completed, so no duration was
+recorded" rather than a number.
+
+### What this figure is, and is not
+
+It **is** a single wall-clock measurement of one run, on whatever machine executed it,
+between that run's own recorded start and completion.
+
+It is **not**:
+
+- a benchmark
+- a cold-vs-warm comparison — **no cold/warm harness exists**, and none may be claimed
+- a production throughput figure
+- a sustained-load or concurrency measurement
+
+The UI states this limitation directly next to the number.
+
+### If a real benchmark is ever built — the protocol
 
 1. Generate a fresh ~100-unit batch.
 2. Ingest via `POST /api/batches`.
-3. Trigger `POST /api/reconciliation/runs`, timing **only** that call.
+3. Trigger `POST /api/reconciliation/runs`.
 4. Record: records processed (`totalUnits`) · wall-clock duration · records/second.
 5. Record alongside it: batch size · machine spec (do **not** claim a production
    environment) · PostgreSQL version · **cold vs warm** run.
 6. Report **both** cold and warm. Do not average away the cold start to make the number
    look better.
+
+Until steps 5–6 are done, the single-run figure above is all that may be quoted.
 
 ### A genuine architectural strength
 

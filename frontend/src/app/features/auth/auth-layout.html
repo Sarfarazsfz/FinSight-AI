@@ -1,0 +1,60 @@
+<div class="lp-theme bg-[var(--lp-bg)] text-[var(--lp-text)] min-h-screen flex flex-col justify-between selection:bg-[#FAF2E2] selection:text-[#171717] relative overflow-hidden">
+  <!-- Soft Ambient Moving Background Blobs (Extremely Low Contrast) -->
+  <div class="login-ambient-blob-1" aria-hidden="true"></div>
+  <div class="login-ambient-blob-2" aria-hidden="true"></div>
+
+  <!-- Top Navigation Bar -->
+  <header class="border-b border-[var(--lp-border-subtle)] bg-[#FAF9F6]/85 backdrop-blur-xs relative z-10">
+    <div class="mx-auto w-full max-w-[1240px] px-6 h-14 flex items-center justify-between">
+      <a routerLink="/" class="flex items-center gap-1.5 group focus-visible:outline-none whitespace-nowrap" aria-label="FinSight AI Home">
+        <span class="font-sans text-[20px] font-bold tracking-tight text-[var(--lp-ink)]">
+          FinSight
+        </span>
+        <span class="font-sans text-[20px] font-semibold uppercase tracking-wide text-[var(--lp-accent)]">
+          AI
+        </span>
+      </a>
+
+      <a
+        routerLink="/"
+        class="btn-nav-back focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+        data-testid="auth-back-home"
+      >
+        <svg class="btn-arrow-back h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M10 12 6 8l4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        Back to home
+      </a>
+    </div>
+  </header>
+
+  <main id="main-content" class="flex-1 flex items-center justify-center px-6 py-10 md:py-16 relative z-10">
+    <div class="w-full max-w-[420px]">
+      <div class="card-fintech p-7 sm:p-8 bg-white border border-[var(--lp-border)] rounded-xl shadow-xs">
+        <div class="mb-6">
+          <h1 class="font-sans text-2xl font-bold tracking-tight text-[var(--lp-ink)]">
+            {{ heading() }}
+          </h1>
+          <p class="text-small text-[var(--lp-text-muted)] mt-1.5 leading-relaxed">
+            {{ subheading() }}
+          </p>
+        </div>
+
+        <ng-content />
+      </div>
+
+      <!-- Trust Assurance Footnote -->
+      <div class="mt-6 text-center text-meta text-[var(--lp-text-faint)] flex items-center justify-center gap-1.5">
+        <svg class="h-3.5 w-3.5 text-[var(--lp-teal)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 1.5 2.5 4v4c0 3.5 2.5 6 5.5 6.5 3-.5 5.5-3 5.5-6.5V4L8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+          <path d="m6 8 1.5 1.5L10.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span>Deterministic reconciliation &bull; grounded investigation</span>
+      </div>
+    </div>
+  </main>
+
+  <footer class="border-t border-[var(--lp-border-subtle)] py-4 text-center text-meta text-[var(--lp-text-muted)]">
+    <p>FinSight AI &mdash; AI Finance Controller</p>
+  </footer>
+</div>

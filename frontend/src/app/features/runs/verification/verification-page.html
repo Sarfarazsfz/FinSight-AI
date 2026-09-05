@@ -1,0 +1,341 @@
+<div class="h-full min-h-0 overflow-y-auto flex flex-col px-6 py-8 lg:px-10 lg:py-10">
+<div class="max-w-[1040px] w-full flex flex-col gap-6">
+  <!-- Page Header with Top-Right Back Action -->
+  <div class="shrink-0 pb-4 border-b border-[var(--lp-border-subtle)] flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2.5">
+        <h1 id="verification-heading" class="text-h1 font-bold text-[var(--lp-ink)] tracking-tight">
+          Ground Truth Verification
+        </h1>
+        <span class="px-2.5 py-0.5 rounded-full bg-[#F5F3EF] border border-[var(--lp-border)] text-meta font-mono font-medium text-[var(--lp-text-muted)]">
+          Independent Check
+        </span>
+      </div>
+      <p class="text-body text-[var(--lp-text-muted)] mt-1.5 max-w-[64ch] leading-relaxed">
+        Verification compares this ground-truth file against the deterministic
+        reconciliation results for this run.
+      </p>
+    </div>
+
+    <a
+      [routerLink]="['/runs', runId]"
+      class="btn-nav-back h-10 px-4 inline-flex items-center gap-2 rounded-lg border border-[var(--lp-border-strong)] bg-white text-small font-semibold text-[var(--lp-ink)] hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] hover:bg-[#FAF2E2]/30 active:scale-98 transition-all shrink-0 shadow-2xs cursor-pointer"
+      data-testid="verification-back-to-run"
+    >
+      <svg class="btn-arrow-back h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M10 3.5 5.5 8 10 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Back to run</span>
+    </a>
+  </div>
+
+  <section aria-labelledby="verification-heading" class="flex flex-col gap-6">
+    <p class="sr-only" aria-live="polite">{{ liveRegionText() }}</p>
+
+    <!-- Input -->
+    <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-6 shadow-xs flex flex-col gap-4">
+      <div>
+        <h2 class="text-small font-bold text-[var(--lp-ink)]">Ground-truth file</h2>
+        <p class="text-meta text-[var(--lp-text-muted)] mt-0.5 max-w-[70ch] leading-relaxed">
+          A CSV of expected outcomes, one row per transaction reference. These labels are
+          <strong class="font-semibold text-[var(--lp-ink)]">supplied by you</strong> &mdash; the
+          check proves the engine agrees with them, not that the engine proved itself.
+        </p>
+      </div>
+
+      <details class="text-meta">
+        <summary class="w-fit cursor-pointer select-none font-semibold text-[var(--lp-accent)] hover:text-[var(--lp-accent-hover)] py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)] rounded">
+          Required columns
+        </summary>
+        <ul class="mt-2 flex flex-wrap gap-1.5">
+          @for (column of expectedColumns; track column) {
+            <li class="font-mono bg-[#F5F3EF] border border-[var(--lp-border)] rounded px-2 py-0.5 text-[var(--lp-text-muted)]">
+              {{ column }}
+            </li>
+          }
+        </ul>
+      </details>
+
+      @if (fileName() === null) {
+        <div>
+          <label
+            for="ground-truth-file"
+            class="h-10 px-4 w-fit inline-flex items-center gap-2 rounded-lg border border-[var(--lp-border-strong)] bg-white text-small font-semibold text-[var(--lp-ink)]
+                   hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] hover:bg-[#FAF2E2]/30 hover:-translate-y-0.5
+                   active:scale-98 active:translate-y-0 transition-all duration-200 cursor-pointer shadow-2xs"
+          >
+            <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M8 10V2.5M8 2.5 5 5.5M8 2.5l3 3M2.5 10v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Choose ground-truth CSV
+          </label>
+          <input
+            id="ground-truth-file"
+            type="file"
+            accept=".csv,text/csv"
+            class="sr-only"
+            data-testid="ground-truth-file-input"
+            (change)="onFileSelected($event)"
+          />
+        </div>
+      } @else {
+        <div class="rounded-xl border border-[var(--lp-border)] bg-[#FAF9F6] p-4 flex flex-wrap items-center justify-between gap-3" data-testid="ground-truth-file-selected">
+          <div class="flex items-center gap-3 min-w-0">
+            <div class="h-9 w-9 rounded-lg bg-white border border-[var(--lp-border)] flex items-center justify-center text-[var(--lp-accent)] shrink-0 shadow-2xs">
+              <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M9.333 1.333H4A1.333 1.333 0 0 0 2.667 2.667v10.666A1.333 1.333 0 0 0 4 14.667h8a1.333 1.333 0 0 0 1.333-1.334V5.333L9.333 1.333Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="M9.333 1.333V5.333h4" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="min-w-0">
+              <p class="text-small font-semibold text-[var(--lp-ink)] truncate" [title]="fileName()!">{{ fileName() }}</p>
+              @if (fileError() === null) {
+                <p class="text-meta font-mono text-[var(--lp-text-muted)]" data-testid="ground-truth-row-count">
+                  {{ rowCount() }} ground-truth {{ rowCount() === 1 ? 'row' : 'rows' }}
+                </p>
+              }
+            </div>
+          </div>
+
+          <button
+            type="button"
+            class="h-8 px-3 rounded-lg border border-[var(--lp-border)] bg-white text-small font-semibold text-[var(--lp-danger)] hover:bg-[#FDF5F3] hover:border-[#F0D5CF] active:scale-98 transition-all duration-200 cursor-pointer shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+            data-testid="ground-truth-remove"
+            (click)="clearFile()"
+          >
+            Remove
+          </button>
+        </div>
+      }
+
+      @if (fileError()) {
+        <p
+          class="text-small font-medium text-[var(--lp-danger)] bg-[#FDF5F3] border border-[#E8D8D4] rounded-lg px-3.5 py-3 flex items-start gap-2"
+          role="alert"
+          data-testid="ground-truth-file-error"
+        >
+          <svg class="h-4 w-4 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M8 5v3.5M8 11h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <span>{{ fileError() }}</span>
+        </p>
+      }
+
+      <div class="flex flex-wrap items-center gap-3 pt-1">
+        <button
+          type="button"
+          class="btn-primary-amber h-11 px-6 rounded-lg text-small font-semibold shadow-xs cursor-pointer inline-flex items-center gap-2 disabled:opacity-45 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+          data-testid="verify-button"
+          [disabled]="!canVerify()"
+          (click)="verify()"
+        >
+          @if (state() === 'verifying') {
+            <svg class="h-4 w-4 animate-spin text-white" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" stroke-dasharray="28" stroke-dashoffset="10"/>
+            </svg>
+            <span>Verifying…</span>
+          } @else {
+            <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M8 1.5 2.5 4v4c0 3.5 2.5 6 5.5 6.5 3-.5 5.5-3 5.5-6.5V4L8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+              <path d="m6 8 1.5 1.5L10.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Verify against ground truth</span>
+          }
+        </button>
+
+        @if (rowCount() === 0 && fileError() === null && state() !== 'verifying') {
+          <span class="text-meta text-[var(--lp-text-muted)] font-mono">
+            Select a ground-truth CSV to continue
+          </span>
+        }
+      </div>
+    </div>
+
+    <!-- Processing -->
+    @if (state() === 'verifying') {
+      <div
+        class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-6 shadow-xs flex items-center gap-3.5"
+        data-testid="verification-loading"
+      >
+        <div class="h-5 w-5 rounded-full border-2 border-[var(--lp-accent)] border-t-transparent animate-spin shrink-0" aria-hidden="true"></div>
+        <div>
+          <p class="text-small font-semibold text-[var(--lp-ink)]">
+            Comparing ground-truth labels against deterministic results…
+          </p>
+          <p class="text-meta text-[var(--lp-text-muted)] mt-0.5">
+            The comparison runs on the server against this run's persisted results.
+          </p>
+        </div>
+      </div>
+    }
+
+    <!-- Transport / server failure -->
+    @if (state() === 'error') {
+      <div
+        class="card-fintech border border-[var(--lp-danger)] rounded-2xl bg-[#FDF5F3] p-6 shadow-xs flex flex-col gap-4"
+        role="alert"
+        data-testid="verification-request-error"
+      >
+        <div class="flex items-start gap-2.5">
+          <svg class="h-5 w-5 shrink-0 mt-0.5 text-[var(--lp-danger)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 5.5v3M8 11.5h.01M8 1.5 14.5 13H1.5L8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div>
+            <p class="text-body font-semibold text-[var(--lp-danger)]">Verification could not be completed</p>
+            <p class="text-small text-[var(--lp-text-muted)] mt-1">{{ requestError() }}</p>
+            <p class="text-meta text-[var(--lp-text-faint)] mt-1.5">
+              The reconciliation results for this run are unaffected.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="h-10 px-5 w-fit rounded-lg bg-[var(--lp-ink)] text-white text-small font-semibold hover:bg-black hover:-translate-y-0.5 active:scale-98 active:translate-y-0 transition-all duration-200 inline-flex items-center gap-2 cursor-pointer shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+          data-testid="verification-retry"
+          (click)="retry()"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M2.5 8a5.5 5.5 0 0 1 9.39-3.89L13.5 5.5M13.5 2v3.5H10M13.5 8a5.5 5.5 0 0 1-9.39 3.89L2.5 10.5M2.5 14v-3.5H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Retry</span>
+        </button>
+      </div>
+    }
+
+    <!-- Verdict -->
+    @if (result(); as r) {
+      <div
+        class="card-fintech bg-white rounded-2xl shadow-xs overflow-hidden border"
+        [class.border-[var(--lp-teal)]]="r.isSuccess"
+        [class.border-[var(--lp-danger)]]="!r.isSuccess"
+        data-testid="verification-result"
+      >
+        <!-- Status is carried by icon + word, never colour alone. -->
+        <div
+          class="px-6 py-5 flex items-start gap-3.5 border-b"
+          [class.bg-[#E8F3F1]]="r.isSuccess"
+          [class.border-[#C5E4DE]]="r.isSuccess"
+          [class.bg-[#FDF5F3]]="!r.isSuccess"
+          [class.border-[#E8D8D4]]="!r.isSuccess"
+        >
+          @if (r.isSuccess) {
+            <div class="h-10 w-10 rounded-full bg-white border border-[#C5E4DE] flex items-center justify-center text-[var(--lp-teal)] shrink-0 shadow-2xs">
+              <svg class="h-5 w-5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M13.333 4 6 11.333 2.667 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div>
+              <p class="font-sans text-h3 font-bold text-[var(--lp-teal)]" data-testid="verification-verdict">
+                PASS &middot; Ground truth verified
+              </p>
+              <p class="text-small text-[var(--lp-text-muted)] mt-0.5">
+                0 verification failures.
+              </p>
+            </div>
+          } @else {
+            <div class="h-10 w-10 rounded-full bg-white border border-[#E8D8D4] flex items-center justify-center text-[var(--lp-danger)] shrink-0 shadow-2xs">
+              <svg class="h-5 w-5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div>
+              <p class="font-sans text-h3 font-bold text-[var(--lp-danger)]" data-testid="verification-verdict">
+                FAIL &middot; Ground truth does not match reconciliation results
+              </p>
+              <p class="text-small text-[var(--lp-text-muted)] mt-0.5" data-testid="verification-failure-count">
+                {{ r.failures.length }} verification {{ r.failures.length === 1 ? 'failure' : 'failures' }} listed below.
+              </p>
+            </div>
+          }
+        </div>
+
+        <!-- Expected vs actual -->
+        <div class="p-6 flex flex-col gap-5">
+          <div>
+            <h2 class="text-small font-bold text-[var(--lp-ink)] mb-3">Expected vs actual</h2>
+            <div class="overflow-x-auto">
+              <table class="w-full border-collapse text-left min-w-[380px]" data-testid="verification-comparison">
+                <caption class="sr-only">Expected ground-truth values compared with actual reconciliation results</caption>
+                <thead>
+                  <tr class="border-b border-[var(--lp-border)] bg-[#FAF9F6]">
+                    <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Measure</th>
+                    <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)] text-right">Expected</th>
+                    <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)] text-right">Actual</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-[var(--lp-border-subtle)]">
+                  @for (row of comparisonRows(); track row.label) {
+                    <tr [attr.data-testid]="'verification-row'">
+                      <td class="py-3 px-4 text-small font-medium text-[var(--lp-ink)]">
+                        {{ row.label }}
+                        @if (!row.agrees) {
+                          <span class="ml-1.5 text-meta font-mono font-semibold text-[var(--lp-danger)]">differs</span>
+                        }
+                      </td>
+                      <td class="py-3 px-4 text-small font-mono tabular text-right text-[var(--lp-text-muted)]">{{ row.expected }}</td>
+                      <td
+                        class="py-3 px-4 text-small font-mono tabular text-right font-bold"
+                        [class.text-[var(--lp-ink)]]="row.agrees"
+                        [class.text-[var(--lp-danger)]]="!row.agrees"
+                      >{{ row.actual }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- failures[] verbatim -->
+          @if (r.failures.length > 0) {
+            <div>
+              <h2 class="text-small font-bold text-[var(--lp-ink)] mb-2">Verification failures</h2>
+              <p class="text-meta text-[var(--lp-text-muted)] mb-3">
+                Reported by the comparison engine, verbatim.
+              </p>
+              <ul class="flex flex-col gap-1.5 max-h-[320px] overflow-y-auto" data-testid="verification-failures">
+                @for (failure of r.failures; track $index) {
+                  <li class="text-small font-mono text-[var(--lp-ink)] bg-[#FDF5F3] border border-[#F0D5CF] rounded-lg px-3 py-2 break-words leading-relaxed">
+                    {{ failure }}
+                  </li>
+                }
+              </ul>
+            </div>
+          }
+
+          <!--
+            The endpoint is stateless. Saying so explicitly is more honest
+            than a timestamp this response does not carry.
+          -->
+          <p
+            class="text-meta text-[var(--lp-text-muted)] leading-relaxed border-t border-[var(--lp-border-subtle)] pt-4"
+            data-testid="verification-persistence-note"
+          >
+            This verification is calculated from the supplied ground-truth labels and the
+            persisted deterministic run results. The verification result is not stored.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-3">
+            <a
+              [routerLink]="['/runs', runId]"
+              class="h-10 px-4 inline-flex items-center gap-2 rounded-lg border border-[var(--lp-border-strong)] bg-white text-small font-semibold text-[var(--lp-ink)] hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] hover:-translate-y-0.5 active:scale-98 active:translate-y-0 transition-all duration-200 cursor-pointer shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+              data-testid="verification-result-back"
+            >
+              Back to run
+            </a>
+            <button
+              type="button"
+              class="h-10 px-4 rounded-lg border border-[var(--lp-border)] bg-white text-small font-semibold text-[var(--lp-text)] hover:bg-[#F5F3EF] hover:border-[var(--lp-border-strong)] hover:-translate-y-0.5 active:scale-98 active:translate-y-0 transition-all duration-200 cursor-pointer shadow-2xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+              data-testid="verification-verify-another"
+              (click)="clearFile()"
+            >
+              Verify another file
+            </button>
+          </div>
+        </div>
+      </div>
+    }
+  </section>
+</div>
+</div>

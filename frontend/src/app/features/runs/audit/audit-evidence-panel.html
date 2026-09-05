@@ -1,0 +1,148 @@
+<section
+  class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-6 shadow-xs flex flex-col gap-4"
+  aria-labelledby="audit-evidence-heading"
+  data-testid="audit-evidence-panel"
+>
+  <div class="flex flex-wrap items-start justify-between gap-3">
+    <div class="flex items-start gap-3">
+      <div class="h-8 w-8 shrink-0 rounded-lg bg-[#F5F3EF] border border-[var(--lp-border)] flex items-center justify-center text-[var(--lp-ink)] shadow-2xs">
+        <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M4 2h6l3 3v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M9.5 2v3h3" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M5 8.5h6M5 11h4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <h2 id="audit-evidence-heading" class="text-small font-bold text-[var(--lp-ink)]">
+          Audit evidence
+        </h2>
+        <p class="text-meta text-[var(--lp-text-muted)] mt-0.5 max-w-[56ch] leading-relaxed">
+          Read-only, recorded execution events from FinSight's audit store. This is evidence
+          about how this run was executed &mdash; not a second source of financial truth. Match
+          status, match rate and exception counts remain whatever the breakdown above and Ground
+          Truth Verification report.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  @switch (state()) {
+    @case ('loading') {
+      <div class="flex flex-col gap-2.5" aria-hidden="true" data-testid="audit-evidence-loading">
+        @for (placeholder of [1, 2, 3]; track placeholder) {
+          <div class="rounded-xl border border-[var(--lp-border)] bg-[#FAF9F6] p-3.5 flex flex-col gap-2">
+            <span class="block h-3 w-40 rounded bg-[#EDEAE3] animate-pulse"></span>
+            <span class="block h-3 w-64 rounded bg-[#EDEAE3] animate-pulse"></span>
+          </div>
+        }
+      </div>
+    }
+
+    @case ('error') {
+      <div
+        class="text-small text-[var(--lp-text-muted)] bg-[#F5F3EF] border border-[var(--lp-border)] rounded-lg px-3.5 py-3 flex flex-wrap items-center justify-between gap-3"
+        role="alert"
+        data-testid="audit-evidence-error"
+      >
+        <span>{{ errorMessage() }}</span>
+        <button
+          type="button"
+          class="h-8 px-3 inline-flex items-center gap-1.5 rounded-lg border border-[var(--lp-border-strong)] bg-white text-meta font-semibold hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] transition-colors cursor-pointer shrink-0"
+          (click)="retry()"
+          data-testid="audit-evidence-retry"
+        >
+          Retry
+        </button>
+      </div>
+    }
+
+    @case ('loaded') {
+      @if (isEmpty()) {
+        <p
+          class="text-small text-[var(--lp-text-muted)] bg-[#F5F3EF] border border-[var(--lp-border)] rounded-lg px-3.5 py-3"
+          data-testid="audit-evidence-empty"
+        >
+          No audit evidence is available for this run.
+        </p>
+      } @else {
+        <ul class="flex flex-col gap-2.5" data-testid="audit-evidence-list">
+          @for (view of views(); track view.entry.id) {
+            <li
+              class="rounded-xl border border-[var(--lp-border)] bg-[#FAF9F6] p-3.5 flex flex-col gap-2"
+              data-testid="audit-evidence-entry"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  @if (view.isFailure) {
+                    <svg class="h-3.5 w-3.5 shrink-0 text-[var(--lp-danger)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M8 5.5v3M8 11.5h.01M8 1.5 14.5 13H1.5L8 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  } @else {
+                    <svg class="h-3.5 w-3.5 shrink-0 text-[var(--lp-teal)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M13.333 4 6 11.333 2.667 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  }
+                  <span
+                    class="text-small font-semibold truncate"
+                    [class.text-danger]="view.isFailure"
+                    [class.text-[var(--lp-ink)]]="!view.isFailure"
+                    data-testid="audit-evidence-event-type"
+                  >
+                    {{ view.label }}
+                  </span>
+                </div>
+
+                <time
+                  class="text-meta font-mono text-[var(--lp-text-faint)] shrink-0 tabular"
+                  [attr.datetime]="view.entry.occurredAt"
+                  data-testid="audit-evidence-timestamp"
+                >
+                  {{ view.entry.occurredAt | date: 'MMM d, y, h:mm:ss a' }}
+                </time>
+              </div>
+
+              @if (view.entry.relatedEntityType && view.entry.relatedEntityId) {
+                <p class="text-meta font-mono text-[var(--lp-text-muted)] truncate">
+                  {{ view.entry.relatedEntityType }}: {{ view.entry.relatedEntityId }}
+                </p>
+              }
+
+              @if (view.throughput; as t) {
+                <p class="text-meta text-[var(--lp-text-muted)]">
+                  {{ t.durationMs | number: '1.0-1' }} ms &middot;
+                  {{ t.recordsPerSecond | number: '1.0-0' }} units/sec &mdash;
+                  single-run wall-clock measurement; not a benchmark.
+                </p>
+              }
+
+              <details class="group">
+                <summary
+                  class="text-meta font-semibold text-[var(--lp-text-muted)] hover:text-[var(--lp-ink)] cursor-pointer select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)] rounded"
+                  data-testid="audit-evidence-detail-toggle"
+                >
+                  View recorded details
+                </summary>
+                <pre
+                  class="mt-2 overflow-x-auto rounded-md border border-border bg-white p-3 text-meta font-mono whitespace-pre-wrap break-words"
+                  data-testid="audit-evidence-detail-payload"
+                >{{ view.formattedDetail }}</pre>
+              </details>
+            </li>
+          }
+        </ul>
+
+        @if (hasMore()) {
+          <button
+            type="button"
+            class="self-start h-9 px-3.5 inline-flex items-center gap-1.5 rounded-lg border border-[var(--lp-border-strong)] bg-white text-small font-semibold hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            [disabled]="loadingMore()"
+            (click)="loadMore()"
+            data-testid="audit-evidence-load-more"
+          >
+            {{ loadingMore() ? 'Loading…' : 'Load older events' }}
+          </button>
+        }
+      }
+    }
+  }
+</section>

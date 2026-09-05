@@ -1,11 +1,31 @@
-<div class="max-w-[760px]">
-  <h1 class="text-h1">Upload batch</h1>
-  <p class="text-body text-text-muted mt-2 max-w-[60ch]">
-    Provide matching Payment, Bank and Settlement records for the same
-    period. All three files are required.
-  </p>
+<div class="h-full min-h-0 overflow-y-auto flex flex-col px-6 py-8 lg:px-10 lg:py-10">
+<div class="max-w-[1040px] w-full flex flex-col gap-6">
+  <!-- Page Header with Top-Right Back Action -->
+  <div class="shrink-0 pb-4 border-b border-[var(--lp-border-subtle)] flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <div class="flex items-center gap-2">
+        <h1 class="text-h1 font-bold text-[var(--lp-ink)]">Upload batch</h1>
+        <span class="px-2 py-0.5 rounded-full bg-[#F5F3EF] border border-[var(--lp-border)] text-meta font-mono font-medium text-[var(--lp-text-muted)]">
+          CSV Ingestion
+        </span>
+      </div>
+      <p class="text-body text-[var(--lp-text-muted)] mt-1.5 max-w-[64ch] leading-relaxed">
+        Provide matching Payment, Bank and Settlement records for the same period. All three files are required.
+      </p>
+    </div>
 
-  <section class="mt-8" aria-labelledby="upload-result-heading">
+    <a
+      routerLink="/batches"
+      class="btn-nav-back h-10 px-4 inline-flex items-center gap-2 rounded-lg border border-[var(--lp-border-strong)] bg-white text-small font-semibold text-[var(--lp-ink)] hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] hover:bg-[#FAF2E2]/30 active:scale-98 transition-all shrink-0 shadow-2xs cursor-pointer"
+    >
+      <svg class="btn-arrow-back h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M10 3.5 5.5 8 10 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Back to Batches</span>
+    </a>
+  </div>
+
+  <section aria-labelledby="upload-result-heading">
     <h2
       id="upload-result-heading"
       #resultHeading
@@ -21,57 +41,72 @@
       @case ('success') {
         <div
           data-testid="upload-success"
-          class="border border-matched rounded-lg bg-matched-bg px-6 py-8 flex flex-col gap-5"
+          class="card-fintech border border-[var(--lp-teal)] rounded-2xl bg-white p-6 sm:p-8 flex flex-col gap-6 shadow-sm animate-in fade-in zoom-in-95 duration-200"
         >
-          <div>
-            <p class="text-h3 text-matched">Batch uploaded successfully</p>
-            <p class="text-small text-text-muted mt-1">
-              Label entered: {{ batchLabel() }}
-            </p>
+          <div class="flex items-start gap-4">
+            <div class="h-12 w-12 rounded-full bg-[#E8F3F1] border border-[#C5E4DE] flex items-center justify-center text-[var(--lp-teal)] shrink-0 shadow-2xs">
+              <svg class="h-6 w-6" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M13.333 4 6 11.333 2.667 8" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-h3 font-bold text-[var(--lp-ink)]">Batch uploaded successfully</p>
+              <p class="text-small text-[var(--lp-text-muted)] mt-1">
+                Label entered: <strong class="font-semibold text-[var(--lp-ink)]">{{ batchLabel() }}</strong>
+              </p>
+            </div>
           </div>
 
-          <dl class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-4">
-            <div>
-              <dt class="text-meta uppercase text-text-faint">Batch ID</dt>
-              <dd class="text-small tabular truncate" [title]="result()!.batchId">
-                {{ result()!.batchId }}
-              </dd>
-            </div>
-            <div>
-              <dt class="text-meta uppercase text-text-faint">Status</dt>
-              <dd class="text-small">{{ result()!.validationStatus }}</dd>
-            </div>
-            <div>
-              <dt class="text-meta uppercase text-text-faint">Payments</dt>
-              <dd class="text-small tabular">{{ result()!.paymentRecordCount }}</dd>
-            </div>
-            <div>
-              <dt class="text-meta uppercase text-text-faint">Bank</dt>
-              <dd class="text-small tabular">{{ result()!.bankRecordCount }}</dd>
-            </div>
-            <div>
-              <dt class="text-meta uppercase text-text-faint">Settlements</dt>
-              <dd class="text-small tabular">{{ result()!.settlementRecordCount }}</dd>
-            </div>
-            <div>
-              <dt class="text-meta uppercase text-text-faint">Total</dt>
-              <dd class="text-small tabular font-semibold">{{ result()!.totalRecordCount }}</dd>
-            </div>
-          </dl>
+          <div class="rounded-xl bg-[#FAF9F6] border border-[var(--lp-border)] p-5">
+            <dl class="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
+              <div>
+                <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Batch ID</dt>
+                <dd class="text-small font-mono tabular truncate text-[var(--lp-ink)] mt-0.5" [title]="result()!.batchId">
+                  {{ result()!.batchId }}
+                </dd>
+              </div>
+              <div>
+                <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Status</dt>
+                <dd class="text-small mt-0.5">
+                  <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-meta font-semibold bg-[#E8F3F1] text-[var(--lp-teal)] border border-[#C5E4DE]">
+                    <span class="h-1.5 w-1.5 rounded-full bg-[var(--lp-teal)]"></span>
+                    {{ result()!.validationStatus }}
+                  </span>
+                </dd>
+              </div>
+              <div>
+                <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Payments</dt>
+                <dd class="text-small font-mono tabular text-[var(--lp-ink)] mt-0.5">{{ result()!.paymentRecordCount }}</dd>
+              </div>
+              <div>
+                <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Bank</dt>
+                <dd class="text-small font-mono tabular text-[var(--lp-ink)] mt-0.5">{{ result()!.bankRecordCount }}</dd>
+              </div>
+              <div>
+                <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Settlements</dt>
+                <dd class="text-small font-mono tabular text-[var(--lp-ink)] mt-0.5">{{ result()!.settlementRecordCount }}</dd>
+              </div>
+              <div>
+                <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Total Records</dt>
+                <dd class="text-small font-mono tabular font-bold text-[var(--lp-ink)] mt-0.5">{{ result()!.totalRecordCount }}</dd>
+              </div>
+            </dl>
+          </div>
 
-          <div class="flex flex-wrap gap-3">
+          <div class="flex flex-wrap items-center gap-3 pt-2">
             <button
               type="button"
-              class="h-10 px-4 rounded-md bg-ink text-on-ink text-small font-semibold
-                     hover:bg-ink-strong transition-colors"
+              class="btn-primary-amber h-10 px-5 rounded-lg text-small font-semibold shadow-xs cursor-pointer inline-flex items-center gap-2"
               (click)="goToHistory()"
             >
-              View batch history
+              <span>View batch history</span>
+              <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </button>
             <button
               type="button"
-              class="h-10 px-4 rounded-md border border-border-strong text-small font-semibold
-                     hover:border-text-faint transition-colors"
+              class="h-10 px-4 rounded-lg border border-[var(--lp-border)] bg-white text-small font-semibold text-[var(--lp-text)] hover:bg-[#F5F3EF] hover:border-[var(--lp-border-strong)] transition-all shadow-2xs cursor-pointer"
               (click)="reset()"
             >
               Upload another batch
@@ -81,73 +116,103 @@
       }
       @default {
         <form (submit)="onSubmit($event)" novalidate class="flex flex-col gap-6">
-          <div class="flex flex-col gap-2">
-            <label class="text-small font-semibold" for="batch-label">Batch label</label>
+          <!-- Batch Label Card -->
+          <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-xl p-5 shadow-xs flex flex-col gap-2">
+            <label class="text-small font-semibold text-[var(--lp-ink)]" for="batch-label">Batch label</label>
             <input
               id="batch-label"
               type="text"
               maxlength="100"
+              placeholder="e.g. August 2026 Batch 1"
               [value]="batchLabel()"
               (input)="onLabelInput($event)"
               [disabled]="state() === 'submitting'"
-              class="h-11 px-4 rounded-md border bg-surface text-body max-w-[420px]
-                     border-border-strong hover:border-text-faint
-                     focus-visible:border-accent disabled:opacity-55"
+              class="h-11 px-4 rounded-lg border bg-[#FAF9F6] text-body w-full
+                     border-[var(--lp-border-strong)] hover:border-[var(--lp-text-muted)]
+                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)] focus-visible:bg-white
+                     disabled:opacity-55 transition-all shadow-2xs"
             />
+            <p class="text-meta text-[var(--lp-text-muted)]">
+              A distinctive reference name to identify this batch in the ledger.
+            </p>
           </div>
 
-          <p class="text-meta text-text-faint">
-            Expected fields are shown below. Common column-name variations are supported.
-          </p>
+          <!-- File Slots Grid -->
+          <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-xl p-5 shadow-xs flex flex-col gap-4">
+            <div>
+              <h2 class="text-small font-semibold text-[var(--lp-ink)]">Source financial files</h2>
+              <p class="text-meta text-[var(--lp-text-muted)] mt-0.5">
+                Expected fields are shown below. Common column-name variations are supported.
+              </p>
+            </div>
 
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <app-file-slot
-              label="Payment file"
-              hint="payment_record_id, transaction_reference, amount, currency, transaction_date, payment_status"
-              [file]="paymentsFile()"
-              [disabled]="state() === 'submitting'"
-              (fileSelected)="paymentsFile.set($event)"
-              (fileRemoved)="paymentsFile.set(null)"
-            />
-            <app-file-slot
-              label="Bank file"
-              hint="bank_record_id, transaction_reference, amount, currency, transaction_date, bank_status"
-              [file]="bankFile()"
-              [disabled]="state() === 'submitting'"
-              (fileSelected)="bankFile.set($event)"
-              (fileRemoved)="bankFile.set(null)"
-            />
-            <app-file-slot
-              label="Settlement file"
-              hint="settlement_record_id, transaction_reference, amount, currency, transaction_date, settlement_status"
-              [file]="settlementsFile()"
-              [disabled]="state() === 'submitting'"
-              (fileSelected)="settlementsFile.set($event)"
-              (fileRemoved)="settlementsFile.set(null)"
-            />
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <app-file-slot
+                label="Payment file"
+                hint="payment_record_id, transaction_reference, amount, currency, transaction_date, payment_status"
+                [file]="paymentsFile()"
+                [disabled]="state() === 'submitting'"
+                (fileSelected)="paymentsFile.set($event)"
+                (fileRemoved)="paymentsFile.set(null)"
+              />
+              <app-file-slot
+                label="Bank file"
+                hint="bank_record_id, transaction_reference, amount, currency, transaction_date, bank_status"
+                [file]="bankFile()"
+                [disabled]="state() === 'submitting'"
+                (fileSelected)="bankFile.set($event)"
+                (fileRemoved)="bankFile.set(null)"
+              />
+              <app-file-slot
+                label="Settlement file"
+                hint="settlement_record_id, transaction_reference, amount, currency, transaction_date, settlement_status"
+                [file]="settlementsFile()"
+                [disabled]="state() === 'submitting'"
+                (fileSelected)="settlementsFile.set($event)"
+                (fileRemoved)="settlementsFile.set(null)"
+              />
+            </div>
           </div>
 
+          <!-- Error Feedback Card -->
           @if (state() === 'error') {
             <div
               data-testid="upload-error"
               role="alert"
-              class="border border-danger rounded-lg bg-danger-bg px-4 py-4 flex flex-col gap-4"
+              class="card-fintech border border-[var(--lp-danger)] rounded-xl bg-[#FDF5F3] p-5 flex flex-col gap-4 shadow-xs animate-in fade-in"
             >
+              <div class="flex items-center gap-2 text-[var(--lp-danger)] font-semibold text-small">
+                <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 5.5v3M8 11.5h.01M8 1.5 14.5 13H1.5L8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Upload validation failed</span>
+              </div>
+
               @if (hasStructuredErrors()) {
                 @for (group of errorGroupEntries(); track group[0]) {
-                  <div>
-                    <h3 class="text-small font-semibold text-danger">{{ group[0] }}</h3>
-                    <ul class="mt-1 flex flex-col gap-1">
+                  <div class="bg-white/70 rounded-lg border border-[#F0D5CF] p-3.5 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                      <h3 class="text-small font-bold text-[var(--lp-danger)]">{{ group[0] }}</h3>
+                      <span class="text-meta font-mono text-[var(--lp-danger)] bg-[#FDF5F3] px-2 py-0.5 rounded-full border border-[#F0D5CF]">
+                        {{ group[1].length }} {{ group[1].length === 1 ? 'error' : 'errors' }}
+                      </span>
+                    </div>
+                    <ul class="mt-1 flex flex-col gap-1.5">
                       @for (err of visibleErrors(group[0], group[1]); track $index) {
-                        <li class="text-small text-danger">
-                          Row {{ err.rowNumber }} — {{ err.field }}: {{ err.message }}
+                        <li class="text-small text-[var(--lp-danger)] flex items-start gap-2">
+                          <span class="font-mono text-meta font-semibold bg-[#FAF2E2] px-1.5 py-0.5 rounded shrink-0 text-[var(--lp-ink)]">
+                            Row {{ err.rowNumber }}
+                          </span>
+                          <span class="leading-relaxed">
+                            <code class="font-mono font-semibold">{{ err.field }}</code>: {{ err.message }}
+                          </span>
                         </li>
                       }
                     </ul>
                     @if (group[1].length > maxErrorsShownPerGroup && !isExpanded(group[0])) {
                       <button
                         type="button"
-                        class="text-small font-semibold underline text-danger mt-1"
+                        class="text-meta font-semibold text-[var(--lp-danger)] hover:underline mt-1 self-start cursor-pointer"
                         (click)="expand(group[0])"
                       >
                         Show all {{ group[1].length }} errors
@@ -156,26 +221,42 @@
                   </div>
                 }
               } @else {
-                <p class="text-small font-semibold text-danger" data-testid="upload-error-detail">
+                <p class="text-small font-semibold text-[var(--lp-danger)]" data-testid="upload-error-detail">
                   {{ errorDetail() }}
                 </p>
               }
             </div>
           }
 
-          <div>
+          <!-- Submit Button -->
+          <div class="flex items-center gap-4">
             <button
               type="submit"
               [disabled]="!canSubmit()"
-              class="h-11 px-5 rounded-md bg-ink text-on-ink text-small font-semibold
-                     hover:bg-ink-strong disabled:opacity-55 disabled:cursor-not-allowed
-                     transition-colors"
+              class="btn-primary-amber h-11 px-6 rounded-lg text-small font-semibold shadow-xs cursor-pointer inline-flex items-center gap-2"
             >
-              {{ state() === 'submitting' ? 'Uploading…' : 'Upload batch' }}
+              @if (state() === 'submitting') {
+                <svg class="h-4 w-4 animate-spin text-white" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="2" stroke-dasharray="28" stroke-dashoffset="10"/>
+                </svg>
+                <span>Uploading…</span>
+              } @else {
+                <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 10V2.5M8 2.5 5 5.5M8 2.5l3 3M2.5 10v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span>Upload batch</span>
+              }
             </button>
+
+            @if (!canSubmit() && state() !== 'submitting') {
+              <span class="text-meta text-[var(--lp-text-muted)] font-mono">
+                Enter label and select 3 CSV files to proceed
+              </span>
+            }
           </div>
         </form>
       }
     }
   </section>
+</div>
 </div>

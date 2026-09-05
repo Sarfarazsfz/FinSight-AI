@@ -10,10 +10,16 @@ import { authGuard } from './core/guards/auth.guard';
  * back into the app by LoginPage's own ngOnInit check, so nothing about
  * the authenticated flow changes.
  *
- * No /signup, /forgot-password, /analytics, /admin or /audit route exists.
- * None has a backend capability behind it -- audit in particular has no
- * read endpoint at all -- and a route that cannot work is worse than an
- * absent one.
+ * /signup, /forgot-password and /reset-password each map to a real
+ * AuthController action. No /analytics or /admin route exists -- neither
+ * has a backend capability behind it, and a route that cannot work is
+ * worse than an absent one.
+ *
+ * There is also no standalone /audit route: audit evidence has a real,
+ * read-only backend endpoint (GET /api/reconciliation/runs/{runId}/audit,
+ * added in P-1H), but its UI is embedded directly in the Run Workspace
+ * (runs/:runId) rather than given its own route -- the same way Finance
+ * Assistant is embedded rather than routed. See AuditEvidencePanel.
  */
 export const routes: Routes = [
   {
@@ -28,6 +34,28 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/auth/login-page').then((m) => m.LoginPage),
     title: 'Sign in — FinSight',
+  },
+  {
+    path: 'signup',
+    loadComponent: () =>
+      import('./features/auth/signup-page').then((m) => m.SignupPage),
+    title: 'Create account — FinSight',
+  },
+  {
+    path: 'forgot-password',
+    loadComponent: () =>
+      import('./features/auth/forgot-password-page').then(
+        (m) => m.ForgotPasswordPage,
+      ),
+    title: 'Reset password — FinSight',
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () =>
+      import('./features/auth/reset-password-page').then(
+        (m) => m.ResetPasswordPage,
+      ),
+    title: 'Set a new password — FinSight',
   },
   {
     path: '',
@@ -56,6 +84,14 @@ export const routes: Routes = [
             (m) => m.RunWorkspacePage,
           ),
         title: 'Run — FinSight',
+      },
+      {
+        path: 'runs/:runId/verify',
+        loadComponent: () =>
+          import('./features/runs/verification/verification-page').then(
+            (m) => m.VerificationPage,
+          ),
+        title: 'Ground truth verification — FinSight',
       },
       {
         path: 'runs/:runId/results',
@@ -88,6 +124,14 @@ export const routes: Routes = [
             (m) => m.ExceptionDetailPage,
           ),
         title: 'Exception — FinSight',
+      },
+      {
+        path: 'data-generator',
+        loadComponent: () =>
+          import('./features/data-generator/data-generator-page').then(
+            (m) => m.DataGeneratorPage,
+          ),
+        title: 'Synthetic Data Lab — FinSight',
       },
     ],
   },

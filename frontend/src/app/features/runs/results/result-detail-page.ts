@@ -41,6 +41,13 @@ type DetailState = 'loading' | 'loaded' | 'not-found' | 'error';
   imports: [DatePipe, RouterLink],
   templateUrl: './result-detail-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    // See BatchesPage for the full rationale. This page is a naturally
+    // document-flowing evidence viewer (three stacked source cards), so
+    // page-level vertical scroll is appropriate here -- this binding only
+    // establishes correct height participation inside AppShell's <main>.
+    class: 'flex-1 min-h-0 flex flex-col',
+  },
 })
 export class ResultDetailPage implements OnInit {
   private readonly route = inject(ActivatedRoute);

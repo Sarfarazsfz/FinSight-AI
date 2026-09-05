@@ -22,12 +22,17 @@ provisioned environment.
 ### Environment requirement
 
 Database-backed tests require **`FINSIGHT_TEST_CONNECTION`** pointing at a dedicated
-test database. Without it, every such fixture fails at `OneTimeSetUp` with a clear,
-identical environment error — **not** a logic failure.
+test database. Without it, `PostgresIntegrationFixture` calls `Assert.Ignore` in its
+constructor, so every such fixture is **skipped** at `OneTimeSetUp` with the reason
+`FINSIGHT_TEST_CONNECTION is not configured`.
 
-`[RECOMMENDATION]` When triaging a failing run, first confirm whether every failure
-message is that environment error. If so, the failure is environmental. Grep before
-debugging.
+`[CODE]` This is an ignore, not a swallowed failure: no assertion is bypassed, and when
+the variable is set the tests execute exactly as before — a real failure inside them is
+still reported as a failure. A missing test database is a missing environment, not a
+product regression, and a plain `dotnet test` should not go red because of it.
+
+`[RECOMMENDATION]` A skipped count therefore means "integration environment not
+configured". Any *failure* is real — investigate it.
 
 ### The invariants under test
 

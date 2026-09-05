@@ -8,7 +8,7 @@ import {
   viewChild,
 } from '@angular/core';
 import type { HttpErrorResponse } from '@angular/common/http';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { BatchApi } from '../../../core/api/batch-api.service';
 import { AuthStore } from '../../../core/state/auth-store';
 import {
@@ -54,9 +54,19 @@ const MAX_ERRORS_SHOWN_PER_GROUP = 8;
  */
 @Component({
   selector: 'app-batch-upload-page',
-  imports: [FileSlot],
+  imports: [FileSlot, RouterLink],
   templateUrl: './batch-upload-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    // See BatchesPage for the full rationale: without an explicit flex/
+    // min-height binding, this component's host sizes to its content
+    // instead of filling AppShell's <main>, which is what let the page
+    // render with no vertical containment at all (zero padding, content
+    // flush against the sidebar). The template's own root div owns the
+    // scroll behavior (page-level, since a form is naturally document-flow);
+    // this binding only establishes correct height participation.
+    class: 'flex-1 min-h-0 flex flex-col',
+  },
 })
 export class BatchUploadPage {
   private readonly batchApi = inject(BatchApi);

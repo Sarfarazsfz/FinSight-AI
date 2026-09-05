@@ -37,8 +37,12 @@ describe('FinanceAssistantPanel', () => {
     return el().querySelector<HTMLButtonElement>('[data-testid="assistant-ask-button"]')!;
   }
 
-  function questionInput(): HTMLInputElement {
-    return el().querySelector<HTMLInputElement>('[data-testid="assistant-question-input"]')!;
+  function questionInput(): HTMLTextAreaElement {
+    return el().querySelector<HTMLTextAreaElement>('[data-testid="assistant-question-input"]')!;
+  }
+
+  function conversationContainer(): HTMLElement {
+    return el().querySelector<HTMLElement>('[data-testid="assistant-conversation-container"]')!;
   }
 
   function typeQuestion(text: string): void {
@@ -105,6 +109,137 @@ describe('FinanceAssistantPanel', () => {
     expect(el().textContent?.toLowerCase()).toContain('never the source of financial truth');
   });
 
+  it('does not render the redundant bottom disclaimer footer, keeping only the top trust statement', () => {
+    configure();
+
+    expect(el().textContent).not.toContain('AI-generated analysis may contain errors');
+  });
+
+  // ---------------------------------------------------------------------
+  // Multiline composer
+  // ---------------------------------------------------------------------
+
+  it('is a real textarea, not a single-line input', () => {
+    configure();
+    expect(questionInput().tagName).toBe('TEXTAREA');
+  });
+
+  it('starts at a compact, roughly one-line height', () => {
+    configure();
+    const height = parseInt(questionInput().style.height || '0', 10);
+    expect(height).toBeLessThanOrEqual(48);
+    expect(height).toBeGreaterThan(0);
+  });
+
+  it('grows as the user types multiple lines', () => {
+    configure();
+    const textarea = questionInput();
+    const compactHeight = parseInt(textarea.style.height, 10);
+
+    textarea.value = 'line one\nline two\nline three\nline four\nline five';
+    textarea.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    const grownHeight = parseInt(textarea.style.height, 10);
+    expect(grownHeight).toBeGreaterThan(compactHeight);
+  });
+
+  it('caps growth at the configured maximum height', () => {
+    configure();
+    const textarea = questionInput();
+
+    textarea.value = Array.from({ length: 40 }, (_, i) => `line ${i}`).join('\n');
+    textarea.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(parseInt(textarea.style.height, 10)).toBeLessThanOrEqual(160);
+  });
+
+  it('resets to the compact height after a message is sent', () => {
+    configure();
+    const textarea = questionInput();
+
+    textarea.value = 'line one\nline two\nline three\nline four';
+    textarea.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(parseInt(textarea.style.height, 10)).toBeGreaterThan(40);
+
+    askButton().click();
+    fixture.detectChanges();
+
+    expect(parseInt(textarea.style.height, 10)).toBeLessThanOrEqual(40);
+    httpMock.expectOne(askUrl).flush(response());
+  });
+
+  // ---------------------------------------------------------------------
+  // Auto-scroll
+  // ---------------------------------------------------------------------
+
+  it('scrolls the conversation to the latest content after sending and after the response arrives', () => {
+    configure();
+
+    // An explicit, real pixel height (not just max-height) so the
+    // container genuinely overflows in the real headless-Chrome layout
+    // this suite runs in, regardless of the ambient unstyled test host.
+    const container = conversationContainer();
+    container.style.height = '120px';
+    fixture.detectChanges();
+
+    for (let i = 0; i < 5; i++) {
+      askAndFlush(
+        `Question number ${i}`,
+        response({ answer: 'A reasonably long answer with enough text to take up real vertical space.' }),
+      );
+    }
+
+    expect(container.scrollTop + container.clientHeight).toBeGreaterThanOrEqual(
+      container.scrollHeight - 2,
+    );
+  });
+
+  it('does not force-scroll away from history the user intentionally scrolled up to read', () => {
+    configure();
+
+    const container = conversationContainer();
+    container.style.height = '120px';
+    fixture.detectChanges();
+
+    for (let i = 0; i < 5; i++) {
+      askAndFlush(
+        `Question number ${i}`,
+        response({ answer: 'A reasonably long answer with enough text to take up real vertical space.' }),
+      );
+    }
+
+    // Scroll away from the bottom, as a user re-reading earlier history
+    // would.
+    container.scrollTop = 0;
+    container.dispatchEvent(new Event('scroll'));
+    fixture.detectChanges();
+
+    // Retrying an earlier exchange is not the same as sending a fresh
+    // question -- it must not yank the reader back to the bottom either
+    // while loading or once the retried answer completes.
+    typeQuestion('One more, which will fail');
+    askButton().click();
+    httpMock.expectOne(askUrl).flush({ detail: 'boom' }, { status: 503, statusText: 'Service Unavailable' });
+    fixture.detectChanges();
+
+    container.scrollTop = 0;
+    container.dispatchEvent(new Event('scroll'));
+    fixture.detectChanges();
+
+    el().querySelector<HTMLButtonElement>('[data-testid="assistant-retry-button"]')!.click();
+    fixture.detectChanges();
+
+    expect(container.scrollTop).toBe(0);
+
+    httpMock.expectOne(askUrl).flush(response());
+    fixture.detectChanges();
+
+    expect(container.scrollTop).toBe(0);
+  });
+
   it('clicking a suggested question fills the input without submitting', () => {
     configure();
 
@@ -148,14 +283,31 @@ describe('FinanceAssistantPanel', () => {
     req.flush(response());
   });
 
-  it('pressing Enter with a modifier key still submits -- there is no multiline input to reserve it for', () => {
+  it('Shift+Enter does not submit -- it is reserved for inserting a newline in the multiline composer', () => {
     configure();
     typeQuestion('What is the match rate?');
 
     pressKey(questionInput(), 'Enter', { shiftKey: true });
 
+    expect(httpMock.match(askUrl).length).toBe(0);
+  });
+
+  it('plain Enter (no Shift) submits', () => {
+    configure();
+    typeQuestion('What is the match rate?');
+
+    pressKey(questionInput(), 'Enter');
+
     const req = httpMock.expectOne((r) => r.url === askUrl && r.method === 'POST');
+    expect(req.request.body).toEqual({ runId, question: 'What is the match rate?' });
     req.flush(response());
+  });
+
+  it('placeholder is clean -- no keyboard-shortcut hint text', () => {
+    configure();
+
+    expect(questionInput().placeholder).not.toContain('Shift+Enter');
+    expect(questionInput().placeholder).toBe('Ask about this run...');
   });
 
   it('clicking Send POSTs to the finance-assistant endpoint with the current runId and exact question', () => {

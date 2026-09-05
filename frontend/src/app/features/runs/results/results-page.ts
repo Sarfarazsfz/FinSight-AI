@@ -37,6 +37,14 @@ type ResultsPageState = 'loading' | 'loaded' | 'empty' | 'not-found' | 'error';
   imports: [DatePipe, RouterLink],
   templateUrl: './results-page.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    // Same rationale as BatchesPage: this page's table can hold up to
+    // PAGE_SIZE (50) rows, so it needs the same contained-scroll
+    // architecture -- the host must fill AppShell's <main> for the
+    // template's inner table viewport (not the browser page) to own
+    // vertical scrolling once there are many rows.
+    class: 'flex-1 min-h-0 flex flex-col',
+  },
 })
 export class ResultsPage implements OnInit {
   private readonly route = inject(ActivatedRoute);

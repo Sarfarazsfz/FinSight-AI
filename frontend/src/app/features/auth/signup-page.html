@@ -1,0 +1,151 @@
+<app-auth-layout
+  heading="Create your account"
+  subheading="Set up access to reconcile batches, review exceptions and verify results."
+>
+  <form
+    class="flex flex-col gap-4.5"
+    [formGroup]="form"
+    (ngSubmit)="submit()"
+    novalidate
+  >
+    <!-- Email -->
+    <div class="flex flex-col gap-1.5">
+      <label class="text-small font-semibold text-[var(--lp-ink)]" for="signup-email">
+        Email
+      </label>
+      <input
+        id="signup-email"
+        type="email"
+        inputmode="email"
+        autocomplete="email"
+        formControlName="email"
+        placeholder="name@company.com"
+        data-testid="signup-email"
+        class="h-11 px-3.5 rounded-lg border bg-[#FAF9F6] text-[var(--lp-text)] text-body
+               border-[var(--lp-border)] hover:border-[#8A8780]
+               focus-visible:outline-none focus-visible:bg-white focus-visible:border-[var(--lp-accent)] focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]/15
+               transition-all disabled:opacity-55"
+        [class.border-danger]="emailInvalid"
+        [attr.aria-invalid]="emailInvalid"
+        [attr.aria-describedby]="emailInvalid ? 'signup-email-error' : null"
+      />
+      @if (emailInvalid) {
+        <p id="signup-email-error" class="text-small font-medium text-[var(--lp-danger)] flex items-center gap-1.5 mt-0.5" role="alert">
+          <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M8 5v3.5M8 11h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          Enter a valid email address.
+        </p>
+      }
+    </div>
+
+    <!-- Password -->
+    <div class="flex flex-col gap-1.5">
+      <label class="text-small font-semibold text-[var(--lp-ink)]" for="signup-password">
+        Password
+      </label>
+      <input
+        id="signup-password"
+        type="password"
+        autocomplete="new-password"
+        formControlName="password"
+        placeholder="••••••••"
+        data-testid="signup-password"
+        class="h-11 px-3.5 rounded-lg border bg-[#FAF9F6] text-[var(--lp-text)] text-body
+               border-[var(--lp-border)] hover:border-[#8A8780]
+               focus-visible:outline-none focus-visible:bg-white focus-visible:border-[var(--lp-accent)] focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]/15
+               transition-all disabled:opacity-55"
+        [class.border-danger]="passwordInvalid"
+        [attr.aria-invalid]="passwordInvalid"
+        [attr.aria-describedby]="passwordInvalid ? 'signup-password-error' : 'signup-password-hint'"
+      />
+      @if (passwordInvalid) {
+        <p id="signup-password-error" class="text-small font-medium text-[var(--lp-danger)] flex items-center gap-1.5 mt-0.5" role="alert">
+          <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M8 5v3.5M8 11h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          Password must be at least {{ minimumPasswordLength }} characters.
+        </p>
+      } @else {
+        <p id="signup-password-hint" class="text-meta text-[var(--lp-text-muted)]">
+          At least {{ minimumPasswordLength }} characters.
+        </p>
+      }
+    </div>
+
+    <!-- Confirm password -->
+    <div class="flex flex-col gap-1.5">
+      <label class="text-small font-semibold text-[var(--lp-ink)]" for="signup-confirm">
+        Confirm password
+      </label>
+      <input
+        id="signup-confirm"
+        type="password"
+        autocomplete="new-password"
+        formControlName="confirmPassword"
+        placeholder="••••••••"
+        data-testid="signup-confirm"
+        class="h-11 px-3.5 rounded-lg border bg-[#FAF9F6] text-[var(--lp-text)] text-body
+               border-[var(--lp-border)] hover:border-[#8A8780]
+               focus-visible:outline-none focus-visible:bg-white focus-visible:border-[var(--lp-accent)] focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]/15
+               transition-all disabled:opacity-55"
+        [class.border-danger]="confirmInvalid"
+        [attr.aria-invalid]="confirmInvalid"
+        [attr.aria-describedby]="confirmInvalid ? 'signup-confirm-error' : null"
+      />
+      @if (confirmInvalid) {
+        <p id="signup-confirm-error" class="text-small font-medium text-[var(--lp-danger)] flex items-center gap-1.5 mt-0.5" role="alert">
+          <svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M8 5v3.5M8 11h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          Passwords do not match.
+        </p>
+      }
+    </div>
+
+    @if (authError()) {
+      <div
+        data-testid="signup-error"
+        class="text-small font-medium text-[var(--lp-danger)] bg-[#FDF5F3] border border-[#E8D8D4] rounded-lg px-3.5 py-3 flex items-start gap-2"
+        role="alert"
+      >
+        <svg class="h-4 w-4 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M8 5v3.5M8 11h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <span>{{ authError() }}</span>
+      </div>
+    }
+
+    <button
+      type="submit"
+      class="btn-primary-amber h-11 mt-2 text-body font-semibold flex items-center justify-center shadow-xs cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+      data-testid="signup-submit"
+      [disabled]="isSubmitting()"
+    >
+      @if (isSubmitting()) {
+        <span class="inline-flex items-center gap-2">
+          <svg class="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Creating account…
+        </span>
+      } @else {
+        Create account
+      }
+    </button>
+  </form>
+
+  <p class="mt-5 pt-5 border-t border-[var(--lp-border-subtle)] text-center text-small text-[var(--lp-text-muted)]">
+    Already have an account?
+    <a
+      routerLink="/login"
+      class="font-semibold text-[var(--lp-accent)] hover:text-[var(--lp-accent-hover)] underline underline-offset-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)] rounded"
+      data-testid="signup-to-login"
+    >Sign in</a>
+  </p>
+</app-auth-layout>

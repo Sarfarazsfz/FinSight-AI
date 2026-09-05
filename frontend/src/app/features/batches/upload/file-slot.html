@@ -1,5 +1,15 @@
-<div class="flex flex-col gap-2">
-  <span class="text-small font-semibold" [id]="inputId + '-label'">{{ label() }}</span>
+<div class="h-full flex flex-col gap-2.5">
+  <div class="flex items-center justify-between">
+    <span class="text-small font-semibold text-[var(--lp-ink)]" [id]="inputId + '-label'">{{ label() }}</span>
+    @if (file()) {
+      <span class="text-meta font-mono font-semibold text-[var(--lp-teal)] bg-[#E8F3F1] border border-[#C5E4DE] px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+        <svg class="h-3 w-3" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M13.333 4 6 11.333 2.667 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Ready
+      </span>
+    }
+  </div>
 
   <input
     [id]="inputId"
@@ -15,13 +25,13 @@
   @if (!file()) {
     <label
       [for]="inputId"
-      class="rounded-md border-2 border-dashed px-4 py-6 flex flex-col items-center text-center gap-1
-             cursor-pointer transition-colors
-             peer-focus-visible:outline peer-focus-visible:outline-2
-             peer-focus-visible:outline-accent peer-focus-visible:outline-offset-2"
-      [class.border-border-strong]="!isDragOver()"
-      [class.border-accent]="isDragOver()"
-      [class.bg-accent-soft]="isDragOver()"
+      class="flex-1 rounded-xl border-2 border-dashed px-4 py-6 flex flex-col items-center justify-center text-center gap-2
+             cursor-pointer transition-all duration-200 bg-[#FAF9F6] hover:bg-[#FAF2E2]/30 hover:border-[var(--lp-accent)]
+             peer-focus-visible:outline-none peer-focus-visible:ring-2
+             peer-focus-visible:ring-[var(--lp-accent)] peer-focus-visible:ring-offset-2"
+      [class.border-[var(--lp-border-strong)]]="!isDragOver()"
+      [class.border-[var(--lp-accent)]]="isDragOver()"
+      [class.bg-[#FAF2E2]]="isDragOver()"
       [class.opacity-55]="disabled()"
       [class.pointer-events-none]="disabled()"
       (dragover)="onDragOver($event)"
@@ -29,29 +39,45 @@
       (drop)="onDrop($event)"
       data-testid="file-slot-dropzone"
     >
-      <span class="text-small text-text-muted">
-        Drag a CSV here, or <span class="underline">Browse</span>
+      <div class="h-10 w-10 rounded-full bg-white border border-[var(--lp-border)] flex items-center justify-center text-[var(--lp-accent)] shadow-2xs">
+        <svg class="h-5 w-5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M8 10V2.5M8 2.5 5 5.5M8 2.5l3 3M2.5 10v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+
+      <span class="text-small text-[var(--lp-text-muted)]">
+        Drag a CSV here, or <span class="font-semibold text-[var(--lp-ink)] underline decoration-[var(--lp-accent)] underline-offset-2">Browse</span>
       </span>
+
       @if (hint()) {
-        <span class="text-meta text-text-faint">{{ hint() }}</span>
+        <span class="text-meta text-[var(--lp-text-faint)] font-mono leading-tight max-w-[24ch] mt-1">{{ hint() }}</span>
       }
     </label>
   } @else {
     <div
-      class="rounded-md border border-border bg-surface px-4 py-3 flex items-center justify-between gap-3"
+      class="flex-1 rounded-xl border border-[var(--lp-border)] bg-white p-4 flex flex-col justify-center gap-3 shadow-xs"
       data-testid="file-slot-selected"
     >
-      <div class="min-w-0">
-        <p class="text-small font-semibold truncate" [title]="file()!.name">{{ file()!.name }}</p>
-        <p class="text-meta text-text-muted tabular">{{ formatSize(file()!.size) }}</p>
+      <div class="flex items-start gap-3">
+        <div class="h-9 w-9 rounded-lg bg-[#E8F3F1] border border-[#C5E4DE] flex items-center justify-center text-[var(--lp-teal)] shrink-0 shadow-2xs">
+          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M9.333 1.333H4A1.333 1.333 0 0 0 2.667 2.667v10.666A1.333 1.333 0 0 0 4 14.667h8a1.333 1.333 0 0 0 1.333-1.334V5.333L9.333 1.333Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+            <path d="M9.333 1.333V5.333h4M6 9.333h4M6 12h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-small font-semibold text-[var(--lp-ink)] truncate" [title]="file()!.name">{{ file()!.name }}</p>
+          <p class="text-meta font-mono text-[var(--lp-text-muted)] tabular">{{ formatSize(file()!.size) }}</p>
+        </div>
       </div>
-      <div class="flex items-center gap-2 shrink-0">
+
+      <div class="flex items-center gap-2 pt-2 border-t border-[var(--lp-border-subtle)]">
         <label
           [for]="inputId"
-          class="h-8 px-2.5 inline-flex items-center rounded-md border border-border-strong text-small font-semibold
-                 hover:border-text-faint cursor-pointer transition-colors
-                 peer-focus-visible:outline peer-focus-visible:outline-2
-                 peer-focus-visible:outline-accent peer-focus-visible:outline-offset-2"
+          class="h-8 px-3 inline-flex items-center rounded-lg border border-[var(--lp-border)] bg-white text-small font-semibold text-[var(--lp-text)]
+                 hover:bg-[#F5F3EF] hover:border-[var(--lp-border-strong)] cursor-pointer transition-all shadow-2xs
+                 peer-focus-visible:outline-none peer-focus-visible:ring-2
+                 peer-focus-visible:ring-[var(--lp-accent)] peer-focus-visible:ring-offset-2"
           [class.opacity-55]="disabled()"
           [class.pointer-events-none]="disabled()"
           [attr.aria-label]="'Replace ' + label()"
@@ -60,8 +86,8 @@
         </label>
         <button
           type="button"
-          class="h-8 px-2.5 rounded-md border border-border-strong text-small font-semibold
-                 hover:border-text-faint disabled:opacity-55 disabled:cursor-not-allowed transition-colors"
+          class="h-8 px-3 rounded-lg border border-[var(--lp-border)] bg-white text-small font-semibold text-[var(--lp-danger)]
+                 hover:bg-[#FDF5F3] hover:border-[#F0D5CF] disabled:opacity-55 disabled:cursor-not-allowed transition-all shadow-2xs cursor-pointer"
           [disabled]="disabled()"
           [attr.aria-label]="'Remove ' + label()"
           (click)="remove()"

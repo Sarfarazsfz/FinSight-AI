@@ -1,141 +1,592 @@
-<div class="max-w-[760px]">
-  <section aria-labelledby="run-heading">
-    <h1
-      id="run-heading"
-      #resultHeading
-      tabindex="-1"
-      class="text-h1 outline-none"
-    >
-      {{ batch()?.batchLabel ?? (run() ? 'Batch ' + run()!.batchId : 'Run') }}
-    </h1>
-
-    <p class="sr-only" aria-live="polite">{{ liveRegionText() }}</p>
-
-    @switch (state()) {
-      @case ('loading') {
-        <div class="mt-8 flex flex-col gap-3" aria-hidden="true" data-testid="run-loading">
-          <span class="block h-5 w-40 rounded bg-surface-sunken animate-pulse"></span>
-          <span class="block h-4 w-64 rounded bg-surface-sunken animate-pulse"></span>
-          <span class="block h-4 w-full max-w-[600px] rounded bg-surface-sunken animate-pulse mt-4"></span>
-          <span class="block h-4 w-full max-w-[600px] rounded bg-surface-sunken animate-pulse"></span>
+@switch (state()) {
+  @case ('loading') {
+    <div class="flex-1 min-w-0 min-h-0 overflow-y-auto px-6 py-8 lg:px-10 lg:py-10">
+      <div class="max-w-[960px] flex flex-col gap-6" aria-hidden="true" data-testid="run-loading">
+        <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-6 sm:p-8 flex flex-col gap-6 shadow-xs">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="p-5 rounded-xl bg-[#FAF9F6] flex flex-col gap-2">
+              <span class="block h-3.5 w-24 rounded bg-[#F5F3EF] animate-pulse"></span>
+              <span class="block h-8 w-20 rounded bg-[#F5F3EF] animate-pulse"></span>
+            </div>
+            <div class="p-5 rounded-xl bg-[#FAF9F6] flex flex-col gap-2">
+              <span class="block h-3.5 w-28 rounded bg-[#F5F3EF] animate-pulse"></span>
+              <span class="block h-8 w-16 rounded bg-[#F5F3EF] animate-pulse"></span>
+            </div>
+            <div class="p-5 rounded-xl bg-[#FAF9F6] flex flex-col gap-2">
+              <span class="block h-3.5 w-24 rounded bg-[#F5F3EF] animate-pulse"></span>
+              <span class="block h-8 w-32 rounded bg-[#F5F3EF] animate-pulse"></span>
+            </div>
+          </div>
+          <div class="flex flex-col gap-3 pt-4 border-t border-[var(--lp-border-subtle)]">
+            <span class="block h-4 w-40 rounded bg-[#F5F3EF] animate-pulse"></span>
+            <span class="block h-4 w-64 rounded bg-[#F5F3EF] animate-pulse"></span>
+          </div>
         </div>
-      }
-      @case ('loaded') {
-        <div class="mt-2 flex flex-wrap items-center gap-3">
-          <span
-            class="inline-flex items-center rounded-full px-2.5 py-0.5 text-small font-semibold"
-            [class]="statusBadgeClasses(run()!.status)"
-            data-testid="run-status"
-          >
-            {{ run()!.status }}
-          </span>
-          <span class="text-small text-text-muted tabular truncate max-w-[420px]" [title]="run()!.runId">
-            Run ID: {{ run()!.runId }}
-          </span>
-        </div>
+      </div>
+    </div>
+  }
 
-        @if (!batch()) {
-          <p class="mt-3 text-meta text-text-faint">
-            Batch label unavailable — showing the batch id only.
-          </p>
-        }
-
-        <dl class="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 max-w-[600px]" data-testid="run-metadata">
-          <div>
-            <dt class="text-meta uppercase text-text-faint">Created</dt>
-            <dd class="text-small mt-1">{{ run()!.createdAt | date: 'MMM d, y, h:mm a' }}</dd>
-          </div>
-          <div>
-            <dt class="text-meta uppercase text-text-faint">Started</dt>
-            <dd class="text-small mt-1">{{ run()!.startedAt | date: 'MMM d, y, h:mm a' }}</dd>
-          </div>
-          <div>
-            <dt class="text-meta uppercase text-text-faint">Completed</dt>
-            <dd class="text-small mt-1">
-              {{ run()!.completedAt ? (run()!.completedAt | date: 'MMM d, y, h:mm a') : '—' }}
-            </dd>
-          </div>
-          <div>
-            <dt class="text-meta uppercase text-text-faint">Total units</dt>
-            <dd class="text-small tabular mt-1">{{ run()!.totalReconciliationUnits }}</dd>
-          </div>
-          <div>
-            <dt class="text-meta uppercase text-text-faint">Match rate</dt>
-            <dd class="text-small tabular mt-1">
-              {{ run()!.matchRate !== null ? run()!.matchRate + '%' : '—' }}
-            </dd>
-          </div>
-        </dl>
-
-        <div class="mt-6 flex flex-wrap items-center gap-3">
-          <a
-            [routerLink]="['/runs', run()!.runId, 'results']"
-            class="h-9 px-3 inline-flex items-center rounded-md bg-ink text-on-ink
-                   text-small font-semibold hover:bg-ink-strong transition-colors"
-          >
-            View results
-          </a>
-
-          <a
-            [routerLink]="['/runs', run()!.runId, 'exceptions']"
-            class="h-9 px-3 inline-flex items-center rounded-md border border-border-strong
-                   text-small font-semibold hover:border-text-faint transition-colors"
-          >
-            View exceptions
-          </a>
-
-          @if (run()!.status === 'Running' || run()!.status === 'Pending') {
-            <button
-              type="button"
-              class="h-9 px-3 rounded-md border border-border-strong text-small font-semibold
-                     hover:border-text-faint transition-colors"
-              data-testid="run-refresh"
-              (click)="retry()"
+  @case ('loaded') {
+    <!-- Full-Height Viewport-Contained Architecture: [Main Workspace (Scrollable)] | [Finance Assistant True Right Rail (Fixed)] -->
+    <div class="w-full h-full min-h-0 flex flex-col lg:flex-row overflow-hidden">
+      <!-- Main Scrollable Financial Workspace (flex: 1, min-w-0, min-h-0, overflow-y-auto) -->
+      <div class="flex-1 min-w-0 min-h-0 overflow-y-auto px-6 py-8 lg:px-10 lg:py-10">
+        <div class="max-w-6xl mx-auto flex flex-col gap-6">
+          <!-- Back Navigation & Mobile-only Assistant Trigger -->
+          <div class="flex items-center justify-between">
+            <a
+              routerLink="/batches"
+              class="btn-nav-back inline-flex items-center gap-2 text-small font-semibold text-[var(--lp-text-muted)] hover:text-[var(--lp-ink)] transition-colors"
             >
-              Refresh
-            </button>
-          }
-        </div>
+              <svg class="btn-arrow-back h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M10 3.5 5.5 8 10 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Back to Batches</span>
+            </a>
 
-        <app-finance-assistant-panel [runId]="run()!.runId" />
-      }
-      @case ('not-found') {
-        <div
-          class="mt-8 border border-border rounded-lg bg-surface px-6 py-12
-                 flex flex-col items-center text-center gap-2"
-          data-testid="run-not-found"
-        >
-          <p class="text-h3">Run not found</p>
-          <p class="text-small text-text-muted max-w-[46ch]">
+            <!-- Mobile & Tablet Assistant Trigger (< 1024px) -->
+            <button
+              #assistantMobileTrigger
+              type="button"
+              (click)="openMobileAssistant()"
+              class="lg:hidden h-9 px-3 inline-flex items-center gap-1.5 rounded-lg border border-[#ECD9BA] bg-[#FAF2E2]/60 text-small font-semibold text-[var(--lp-accent)] hover:border-[var(--lp-accent)] hover:bg-[#FAF2E2] active:scale-98 transition-all cursor-pointer shadow-2xs"
+              aria-label="Open Finance Assistant"
+              data-testid="open-assistant-mobile-button"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                <path d="M8 0c.3 1.9 1 3.4 2.1 4.6C11.3 5.7 12.8 6.4 14.7 6.7c-1.9.3-3.4 1-4.6 2.1-1.1 1.2-1.8 2.7-2.1 4.6-.3-1.9-1-3.4-2.1-4.6C4.7 7.7 3.2 7 1.3 6.7c1.9-.3 3.4-1 4.6-2.1C7 3.4 7.7 1.9 8 0Z" />
+              </svg>
+              <span>Finance Assistant</span>
+            </button>
+          </div>
+
+          <!-- Section & Header -->
+          <section aria-labelledby="run-heading" class="flex flex-col gap-6">
+            <!-- Workspace Title & Status Header -->
+            <div class="pb-2 border-b border-[var(--lp-border-subtle)] flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div>
+                <div class="flex flex-wrap items-center gap-2.5">
+                  <h1
+                    id="run-heading"
+                    #resultHeading
+                    tabindex="-1"
+                    class="text-h1 font-bold text-[var(--lp-ink)] outline-none tracking-tight"
+                  >
+                    {{ batch()?.batchLabel ?? (run() ? 'Batch ' + run()!.batchId : 'Run') }}
+                  </h1>
+                  @if (run()) {
+                    <span
+                      class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-meta font-semibold"
+                      [class]="statusBadgeClasses(run()!.status)"
+                      data-testid="run-status"
+                    >
+                      <span class="h-1.5 w-1.5 rounded-full" [class.bg-[var(--lp-teal)]]="run()!.status === 'Completed'" [class.bg-[var(--lp-danger)]]="run()!.status === 'Failed'" [class.bg-[var(--lp-accent)]]="run()!.status === 'Running' || run()!.status === 'Pending'"></span>
+                      {{ run()!.status }}
+                    </span>
+                  }
+                </div>
+
+                @if (run()) {
+                  <p class="text-meta font-mono text-[var(--lp-text-muted)] mt-1.5 tabular truncate max-w-[500px]" [title]="run()!.runId">
+                    Run ID: {{ run()!.runId }}
+                  </p>
+                }
+
+                @if (!batch()) {
+                  <p class="mt-2 text-meta text-[var(--lp-text-faint)]">
+                    Batch label unavailable — showing the batch id only.
+                  </p>
+                }
+              </div>
+
+              <!-- Action Buttons Row -->
+              <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+                <a
+                  [routerLink]="['/runs', run()!.runId, 'results']"
+                  class="btn-primary-amber h-10 px-4 inline-flex items-center gap-2 rounded-lg text-small font-semibold shadow-xs cursor-pointer"
+                >
+                  <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                  </svg>
+                  <span>View results</span>
+                </a>
+
+                <a
+                  [routerLink]="['/runs', run()!.runId, 'exceptions']"
+                  class="h-10 px-4 inline-flex items-center gap-2 rounded-lg border border-[var(--lp-border-strong)] bg-white text-small font-semibold text-[var(--lp-ink)] hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] hover:bg-[#FAF2E2]/30 active:scale-98 transition-all cursor-pointer shadow-2xs"
+                >
+                  <svg class="h-4 w-4 text-[var(--lp-danger)]" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M8 5.5v3M8 11.5h.01M8 1.5 14.5 13H1.5L8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span>View exceptions</span>
+                </a>
+
+                @if (run()!.status === 'Running' || run()!.status === 'Pending') {
+                  <button
+                    type="button"
+                    class="h-10 px-4 inline-flex items-center gap-2 rounded-lg border border-[var(--lp-border-strong)] bg-white text-small font-semibold hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] active:scale-98 transition-all cursor-pointer shadow-2xs"
+                    data-testid="run-refresh"
+                    (click)="retry()"
+                  >
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M2.5 8a5.5 5.5 0 0 1 9.39-3.89L13.5 5.5M13.5 2v3.5H10M13.5 8a5.5 5.5 0 0 1-9.39 3.89L2.5 10.5M2.5 14v-3.5H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>Refresh</span>
+                  </button>
+                }
+
+                <!-- Desktop-only reopen trigger, shown only once the rail has been closed. -->
+                @if (!isDesktopAssistantOpen()) {
+                  <button
+                    #assistantDesktopTrigger
+                    type="button"
+                    (click)="openDesktopAssistant()"
+                    class="hidden lg:inline-flex h-10 px-4 items-center gap-2 rounded-lg border border-[#ECD9BA] bg-[#FAF2E2]/60 text-small font-semibold text-[var(--lp-accent)] hover:border-[var(--lp-accent)] hover:bg-[#FAF2E2] active:scale-98 transition-all cursor-pointer shadow-2xs"
+                    aria-label="Open Finance Assistant"
+                    data-testid="open-assistant-desktop-button"
+                  >
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                      <path d="M8 0c.3 1.9 1 3.4 2.1 4.6C11.3 5.7 12.8 6.4 14.7 6.7c-1.9.3-3.4 1-4.6 2.1-1.1 1.2-1.8 2.7-2.1 4.6-.3-1.9-1-3.4-2.1-4.6C4.7 7.7 3.2 7 1.3 6.7c1.9-.3 3.4-1 4.6-2.1C7 3.4 7.7 1.9 8 0Z" />
+                    </svg>
+                    <span>Finance Assistant</span>
+                  </button>
+                }
+              </div>
+            </div>
+
+            <p class="sr-only" aria-live="polite">{{ liveRegionText() }}</p>
+
+            <!-- Primary KPI Summary Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              <!-- Match Rate KPI Card -->
+              <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-5 shadow-xs flex flex-col justify-between gap-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-meta font-mono uppercase text-[var(--lp-text-muted)] font-semibold">Match Rate</span>
+                  <div class="h-8 w-8 rounded-lg bg-[#E8F3F1] border border-[#C5E4DE] flex items-center justify-center text-[var(--lp-teal)] shadow-2xs">
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M13.333 4 6 11.333 2.667 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <p class="font-sans text-[28px] font-bold tracking-tight text-[var(--lp-ink)] tabular">
+                    {{ run()!.matchRate !== null ? run()!.matchRate + '%' : '—' }}
+                  </p>
+                  <p class="text-meta text-[var(--lp-text-muted)] mt-0.5">Automated match rate</p>
+                </div>
+              </div>
+
+              <!-- Total Units Card -->
+              <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-5 shadow-xs flex flex-col justify-between gap-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-meta font-mono uppercase text-[var(--lp-text-muted)] font-semibold">Total Units</span>
+                  <div class="h-8 w-8 rounded-lg bg-[#FAF2E2] border border-[#ECD9BA] flex items-center justify-center text-[var(--lp-accent)] shadow-2xs">
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M2 4.5 8 2l6 2.5L8 7 2 4.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                      <path d="M2 8l6 2.5L14 8M2 11.5l6 2.5 6-2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <p class="font-sans text-[28px] font-bold tracking-tight text-[var(--lp-ink)] tabular">
+                    {{ run()!.totalReconciliationUnits }}
+                  </p>
+                  <p class="text-meta text-[var(--lp-text-muted)] mt-0.5">Reconciliation ledger units</p>
+                </div>
+              </div>
+
+              <!-- Execution Status Card -->
+              <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-5 shadow-xs flex flex-col justify-between gap-3 sm:col-span-2 xl:col-span-1">
+                <div class="flex items-center justify-between">
+                  <span class="text-meta font-mono uppercase text-[var(--lp-text-muted)] font-semibold">Run Status</span>
+                  <div class="h-8 w-8 rounded-lg bg-[#F5F3EF] border border-[var(--lp-border)] flex items-center justify-center text-[var(--lp-ink)] shadow-2xs">
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+                      <path d="M8 4.5V8l2.5 1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                  </div>
+                </div>
+                <div>
+                  <p class="font-sans text-[28px] font-bold tracking-tight text-[var(--lp-ink)]">
+                    {{ run()!.status }}
+                  </p>
+                  <p class="text-meta text-[var(--lp-text-muted)] mt-0.5">
+                    {{ run()!.completedAt ? 'Finished successfully' : 'Execution in progress' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!--
+              Reconciliation breakdown.
+
+              Every number here comes from GET .../runs/{runId}/summary,
+              which counts the run's entire persisted result set. Nothing
+              on this page is derived from a page of /results -- that would
+              describe one page, not the run.
+            -->
+            <section
+              class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-6 shadow-xs flex flex-col gap-5"
+              aria-labelledby="breakdown-heading"
+              data-testid="reconciliation-breakdown"
+            >
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 id="breakdown-heading" class="text-small font-bold text-[var(--lp-ink)]">
+                    Reconciliation breakdown
+                  </h2>
+                  <p class="text-meta text-[var(--lp-text-muted)] mt-0.5 max-w-[52ch] leading-relaxed">
+                    Every unit in this run is classified into exactly one outcome.
+                  </p>
+                </div>
+
+                <!-- Trust marker: this section is the financial source of truth. -->
+                <span
+                  class="inline-flex items-center gap-1.5 shrink-0 rounded-full border border-[#C5E4DE] bg-[#E8F3F1] px-2.5 py-1 text-meta font-semibold text-[var(--lp-teal)]"
+                  data-testid="ground-truth-badge"
+                >
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M8 1.5 2.5 4v4c0 3.5 2.5 6 5.5 6.5 3-.5 5.5-3 5.5-6.5V4L8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                    <path d="m6 8 1.5 1.5L10.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  Deterministic engine
+                </span>
+              </div>
+
+              @if (summary(); as s) {
+                <div
+                  class="grid grid-cols-2 md:grid-cols-3 2xl:grid-cols-5 gap-3"
+                  data-testid="breakdown-grid"
+                >
+                  @for (item of breakdown(); track item.key) {
+                    <a
+                      [routerLink]="item.key === 'matched'
+                        ? ['/runs', run()!.runId, 'results']
+                        : ['/runs', run()!.runId, 'exceptions']"
+                      class="group rounded-xl border border-[var(--lp-border)] bg-[#FAF9F6] p-3.5 flex flex-col gap-1.5
+                             hover:bg-white hover:border-[var(--lp-border-strong)] hover:-translate-y-0.5
+                             active:scale-98 active:translate-y-0 transition-all duration-200 cursor-pointer shadow-2xs
+                             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+                      [attr.data-testid]="'breakdown-' + item.key"
+                      [attr.aria-label]="item.label + ': ' + item.count + ' of ' + s.totalUnits + ' units. ' + item.meaning + '.'"
+                    >
+                      <span class="flex items-center gap-1.5">
+                        <!-- Shape + text carry the meaning; colour only reinforces it. -->
+                        <span class="h-2 w-2 rounded-full shrink-0" [class]="item.dotClass" aria-hidden="true"></span>
+                        <!-- Never truncated: a clipped "MISMATCH…" is not a
+                             label a reviewer can trust at a glance. -->
+                        <span class="text-meta font-semibold uppercase font-mono text-[var(--lp-text-muted)]">
+                          {{ item.label }}
+                        </span>
+                      </span>
+
+                      <span
+                        class="font-sans text-[24px] font-bold tracking-tight tabular leading-none"
+                        [class]="item.countClass"
+                        [attr.data-testid]="'breakdown-count-' + item.key"
+                      >{{ item.count }}</span>
+
+                      <span class="text-meta text-[var(--lp-text-faint)] leading-tight">
+                        {{ item.meaning }}
+                      </span>
+                    </a>
+                  }
+                </div>
+
+                <!--
+                  The completeness statement. This is what makes the
+                  exception list credible rather than curated: the five
+                  outcomes account for the total exactly.
+                -->
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-[var(--lp-border-subtle)]">
+                  @if (countsReconcile()) {
+                    <p class="text-meta text-[var(--lp-text-muted)] font-mono" data-testid="breakdown-completeness">
+                      {{ s.matched }} + {{ s.mismatched }} + {{ s.missing }} + {{ s.duplicate }} + {{ s.unresolved }}
+                      = {{ s.totalUnits }} units &middot; {{ s.exceptionCount }} exceptions queued
+                    </p>
+                  } @else {
+                    <p class="text-meta font-semibold text-[var(--lp-danger)]" role="alert" data-testid="breakdown-mismatch">
+                      Reported counts do not sum to {{ s.totalUnits }} units. Treat this run's totals as unverified.
+                    </p>
+                  }
+
+                  <p class="text-meta text-[var(--lp-text-faint)]">
+                    Match rate <span class="font-mono font-bold tabular text-[var(--lp-ink)]">{{ s.matchRate }}%</span>
+                  </p>
+                </div>
+              } @else if (summaryFailed()) {
+                <p
+                  class="text-small text-[var(--lp-text-muted)] bg-[#F5F3EF] border border-[var(--lp-border)] rounded-lg px-3.5 py-3"
+                  data-testid="breakdown-unavailable"
+                  role="status"
+                >
+                  The status breakdown could not be loaded. It is deliberately not
+                  estimated from partial data &mdash; reload to try again.
+                </p>
+              } @else {
+                <div class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-3" aria-hidden="true" data-testid="breakdown-loading">
+                  @for (placeholder of [1, 2, 3, 4, 5]; track placeholder) {
+                    <div class="rounded-xl border border-[var(--lp-border)] bg-[#FAF9F6] p-3.5 flex flex-col gap-2">
+                      <span class="block h-3 w-16 rounded bg-[#EDEAE3] animate-pulse"></span>
+                      <span class="block h-6 w-10 rounded bg-[#EDEAE3] animate-pulse"></span>
+                      <span class="block h-3 w-full rounded bg-[#EDEAE3] animate-pulse"></span>
+                    </div>
+                  }
+                </div>
+              }
+
+              <!-- Explicit trust hierarchy, stated once, next to the numbers. -->
+              <div class="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--lp-border-subtle)] pt-4">
+                <p class="text-meta text-[var(--lp-text-muted)] leading-relaxed max-w-[62ch]">
+                  <span class="font-semibold text-[var(--lp-ink)]">Deterministic reconciliation results are the financial source of truth.</span>
+                  The Finance Assistant explains and investigates these verified results &mdash; it does not determine them.
+                </p>
+
+                <!-- The independent check sits directly beside the numbers it checks. -->
+                <a
+                  [routerLink]="['/runs', run()!.runId, 'verify']"
+                  class="h-10 px-4 shrink-0 inline-flex items-center gap-2 rounded-lg border border-[var(--lp-border-strong)] bg-white text-small font-semibold text-[var(--lp-ink)]
+                         hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] hover:bg-[#FAF2E2]/30 hover:-translate-y-0.5
+                         active:scale-98 active:translate-y-0 transition-all duration-200 cursor-pointer shadow-2xs
+                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--lp-accent)]"
+                  data-testid="verify-ground-truth-link"
+                >
+                  <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M8 1.5 2.5 4v4c0 3.5 2.5 6 5.5 6.5 3-.5 5.5-3 5.5-6.5V4L8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                    <path d="m6 8 1.5 1.5L10.5 6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span>Verify against ground truth</span>
+                </a>
+              </div>
+            </section>
+
+            <!--
+              Run performance.
+
+              durationMs / recordsPerSecond are computed server-side from
+              the run's own persisted StartedAt and CompletedAt. Nothing is
+              timed or divided in the browser, and nothing is estimated:
+              when the backend reports null (an unfinished run), this
+              section says so instead of showing a number.
+
+              Deliberately NOT called a benchmark -- no cold/warm harness
+              exists, and one wall-clock measurement is not one.
+            -->
+            @if (summary(); as s) {
+              <section
+                class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-6 shadow-xs flex flex-col gap-4"
+                aria-labelledby="throughput-heading"
+                data-testid="run-performance"
+              >
+                <div>
+                  <h2 id="throughput-heading" class="text-small font-bold text-[var(--lp-ink)]">Run performance</h2>
+                  <p class="text-meta text-[var(--lp-text-muted)] mt-0.5">
+                    Measured for this reconciliation run.
+                  </p>
+                </div>
+
+                @if (s.durationMs !== null) {
+                  <dl class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="rounded-xl border border-[var(--lp-border)] bg-[#FAF9F6] p-3.5">
+                      <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Units processed</dt>
+                      <dd class="font-sans text-[22px] font-bold tracking-tight tabular text-[var(--lp-ink)] mt-1" data-testid="throughput-units">
+                        {{ s.totalUnits }}
+                      </dd>
+                    </div>
+                    <div class="rounded-xl border border-[var(--lp-border)] bg-[#FAF9F6] p-3.5">
+                      <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Duration</dt>
+                      <dd class="font-sans text-[22px] font-bold tracking-tight tabular text-[var(--lp-ink)] mt-1" data-testid="throughput-duration">
+                        {{ s.durationMs | number: '1.0-1' }} ms
+                      </dd>
+                    </div>
+                    <div class="rounded-xl border border-[var(--lp-border)] bg-[#FAF9F6] p-3.5">
+                      <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Throughput</dt>
+                      <dd class="font-sans text-[22px] font-bold tracking-tight tabular text-[var(--lp-ink)] mt-1" data-testid="throughput-rate">
+                        @if (s.recordsPerSecond !== null) {
+                          {{ s.recordsPerSecond | number: '1.0-0' }} <span class="text-small font-medium text-[var(--lp-text-muted)]">units/sec</span>
+                        } @else {
+                          &mdash;
+                        }
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <p class="text-meta text-[var(--lp-text-faint)] leading-relaxed">
+                    Single wall-clock measurement on the environment that executed this run,
+                    taken between the run's recorded start and completion. Not a benchmark, and
+                    not a cold/warm comparison.
+                  </p>
+                } @else {
+                  <p class="text-small text-[var(--lp-text-muted)]" data-testid="throughput-unavailable">
+                    This run has not completed, so no duration was recorded.
+                  </p>
+                }
+              </section>
+            }
+
+            <!-- Detailed Audit Metadata Card -->
+            <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-6 shadow-xs">
+              <h2 class="text-small font-bold text-[var(--lp-ink)] mb-4">Run execution details</h2>
+              <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-5" data-testid="run-metadata">
+                <div class="flex flex-col gap-0.5">
+                  <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Created</dt>
+                  <dd class="text-small font-medium text-[var(--lp-ink)]">{{ run()!.createdAt | date: 'MMM d, y, h:mm a' }}</dd>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                  <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Started</dt>
+                  <dd class="text-small font-medium text-[var(--lp-ink)]">{{ run()!.startedAt | date: 'MMM d, y, h:mm a' }}</dd>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                  <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Completed</dt>
+                  <dd class="text-small font-medium text-[var(--lp-ink)]">
+                    {{ run()!.completedAt ? (run()!.completedAt | date: 'MMM d, y, h:mm a') : '—' }}
+                  </dd>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                  <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Total units</dt>
+                  <dd class="text-small font-mono tabular font-bold text-[var(--lp-ink)]">{{ run()!.totalReconciliationUnits }}</dd>
+                </div>
+                <div class="flex flex-col gap-0.5">
+                  <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Match rate</dt>
+                  <dd class="text-small font-mono tabular font-bold text-[var(--lp-ink)]">
+                    {{ run()!.matchRate !== null ? run()!.matchRate + '%' : '—' }}
+                  </dd>
+                </div>
+              </dl>
+            </div>
+
+            <app-audit-evidence-panel [runId]="run()!.runId" />
+          </section>
+        </div>
+      </div>
+
+      <!--
+        Persistent Full-Height True Right Rail on Desktop (>= 1024px).
+
+        Closing sets isDesktopAssistantOpen to false, which switches this
+        element to the single `hidden` class below -- CSS display:none,
+        not an @if. app-finance-assistant-panel stays mounted the whole
+        time either way, so its conversation/draft/loading state is never
+        destroyed by closing, and the main workspace column (a plain flex
+        sibling) reclaims the full width the instant the rail collapses.
+      -->
+      <aside
+        [class]="isDesktopAssistantOpen()
+          ? 'hidden lg:flex lg:flex-col shrink-0 h-full w-[420px] xl:w-[460px] border-l border-[var(--lp-border)] bg-[#FAF9F6] overflow-hidden select-none'
+          : 'hidden'"
+        aria-label="Finance Assistant Rail"
+        [attr.aria-hidden]="!isDesktopAssistantOpen()"
+      >
+        <app-finance-assistant-panel
+          class="w-full h-full block min-h-0"
+          [runId]="run()!.runId"
+          [showCloseButton]="true"
+          (closed)="closeDesktopAssistant()"
+        />
+      </aside>
+    </div>
+
+    <!--
+      Mobile / Tablet Full-Height Drawer Sheet Modal (< 1024px).
+
+      Deliberately always mounted (never an @if) and toggled purely via
+      classes -- opacity/pointer-events on the backdrop, a translate-x on
+      the sheet -- so app-finance-assistant-panel is never destroyed by
+      closing the drawer. An @if here would tear the component down on
+      every close, discarding its conversation, draft input, and loading
+      state; this way closing and reopening shows exactly what was there
+      before, while the slide/fade still plays on every toggle (not just
+      the first), since it is a transform/opacity transition rather than
+      a mount-triggered "animate-in".
+    -->
+    <div
+      class="lg:hidden fixed inset-0 z-50"
+      [class.pointer-events-none]="!isMobileAssistantOpen()"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="finance-assistant-heading"
+      [attr.aria-hidden]="!isMobileAssistantOpen()"
+    >
+      <!-- Backdrop Scrim -->
+      <div
+        class="fixed inset-0 bg-black/30 backdrop-blur-xs transition-opacity duration-200 motion-reduce:transition-none"
+        [class.opacity-0]="!isMobileAssistantOpen()"
+        (click)="closeMobileAssistant()"
+        aria-hidden="true"
+      ></div>
+
+      <!-- Sheet Panel (100vw on mobile, max-w-md on tablet) -->
+      <div
+        class="absolute inset-y-0 right-0 z-50 w-full sm:max-w-md h-full bg-[#FAF9F6] shadow-2xl flex flex-col transition-transform duration-250 ease-out motion-reduce:transition-none"
+        [class.translate-x-full]="!isMobileAssistantOpen()"
+      >
+        <app-finance-assistant-panel
+          class="w-full h-full block min-h-0"
+          [runId]="run()!.runId"
+          [showCloseButton]="true"
+          (closed)="closeMobileAssistant()"
+        />
+      </div>
+    </div>
+  }
+
+  @case ('not-found') {
+    <div class="flex-1 min-w-0 min-h-0 overflow-y-auto px-6 py-8 lg:px-10 lg:py-10">
+      <div
+        class="card-fintech border border-[var(--lp-border)] rounded-2xl bg-white p-8 sm:p-12 flex flex-col items-center text-center gap-4 shadow-xs max-w-[960px]"
+        data-testid="run-not-found"
+      >
+        <div class="h-12 w-12 rounded-full bg-[#FAF2E2] border border-[#ECD9BA] flex items-center justify-center text-[var(--lp-accent)] shadow-2xs">
+          <svg class="h-6 w-6" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M8 5v3M8 11h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <p class="text-h3 font-bold text-[var(--lp-ink)]">Run not found</p>
+          <p class="text-small text-[var(--lp-text-muted)] max-w-[46ch] mt-1">
             This reconciliation run doesn't exist, or the link is out of date.
           </p>
-          <a
-            routerLink="/batches"
-            class="mt-2 h-10 px-4 inline-flex items-center rounded-md bg-ink text-on-ink
-                   text-small font-semibold hover:bg-ink-strong transition-colors"
-          >
-            Back to Batches
-          </a>
         </div>
-      }
-      @case ('error') {
-        <div
-          class="mt-8 border border-danger rounded-lg bg-danger-bg px-6 py-8
-                 flex flex-col items-center text-center gap-3"
-          role="alert"
-          data-testid="run-error"
+        <a
+          routerLink="/batches"
+          class="btn-primary-amber h-10 px-5 inline-flex items-center gap-2 rounded-lg text-small font-semibold shadow-xs cursor-pointer mt-2"
         >
-          <p class="text-body font-semibold text-danger">{{ errorMessage() }}</p>
-          <button
-            type="button"
-            class="h-10 px-4 rounded-md bg-ink text-on-ink text-small font-semibold
-                   hover:bg-ink-strong transition-colors"
-            (click)="retry()"
-          >
-            Retry
-          </button>
+          <span>Back to Batches</span>
+        </a>
+      </div>
+    </div>
+  }
+
+  @case ('error') {
+    <div class="flex-1 min-w-0 min-h-0 overflow-y-auto px-6 py-8 lg:px-10 lg:py-10">
+      <div
+        class="card-fintech border border-[var(--lp-danger)] rounded-2xl bg-[#FDF5F3] p-8 flex flex-col items-center text-center gap-4 shadow-xs max-w-[960px]"
+        role="alert"
+        data-testid="run-error"
+      >
+        <div class="h-10 w-10 rounded-full bg-[#FAF2E2] border border-[#ECD9BA] flex items-center justify-center text-[var(--lp-danger)]">
+          <svg class="h-5 w-5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M8 5.5v3M8 11.5h.01M8 1.5 14.5 13H1.5L8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
         </div>
-      }
-    }
-  </section>
-</div>
+        <div>
+          <p class="text-body font-semibold text-[var(--lp-danger)]">{{ errorMessage() }}</p>
+          <p class="text-meta text-[var(--lp-text-muted)] mt-1">
+            Please check your connection and retry the request.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="h-10 px-5 rounded-lg bg-[var(--lp-ink)] text-white text-small font-semibold hover:bg-black active:scale-98 transition-all inline-flex items-center gap-2 cursor-pointer shadow-xs"
+          (click)="retry()"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M2.5 8a5.5 5.5 0 0 1 9.39-3.89L13.5 5.5M13.5 2v3.5H10M13.5 8a5.5 5.5 0 0 1-9.39 3.89L2.5 10.5M2.5 14v-3.5H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span>Retry</span>
+        </button>
+      </div>
+    </div>
+  }
+}

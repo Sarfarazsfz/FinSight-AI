@@ -4,13 +4,17 @@ import type { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import type {
   AiExplanationResponse,
+  AuditLogEntryResponse,
   FinanceAssistantRequest,
   FinanceAssistantResponse,
+  GroundTruthComparisonResult,
+  GroundTruthRow,
   ReconciliationExceptionResponse,
   ReconciliationResultResponse,
   ReconciliationRunDetailsResponse,
   ReconciliationRunRequest,
   ReconciliationRunResult,
+  ReconciliationRunSummaryResponse,
   ReconciliationTransactionDetailResponse,
 } from '../models/reconciliation.model';
 import type { PagedResponse } from '../models/paged-response.model';
@@ -21,9 +25,8 @@ import type { PagedResponse } from '../models/paged-response.model';
  * reading one result's source evidence, listing/reading exceptions, and
  * requesting an AI explanation for one exception.
  *
- * `summary` and ground-truth verification are real backend capabilities
- * with no frontend consumer yet -- no method for them exists here. Add each
- * only when the phase that actually builds its screen is being implemented.
+ * `summary` and ground-truth verification are both consumed by the Run
+ * Workspace and the verification page respectively.
  */
 @Injectable({ providedIn: 'root' })
 export class ReconciliationApi {
@@ -43,6 +46,36 @@ export class ReconciliationApi {
 
   getRun(runId: string): Observable<ReconciliationRunDetailsResponse> {
     return this.http.get<ReconciliationRunDetailsResponse>(`${this.baseUrl}/runs/${runId}`);
+  }
+
+  /**
+   * Whole-run status totals. The only correct source for the five-count
+   * breakdown -- `getResults` returns one page, so counting its items
+   * would describe that page rather than the run.
+   */
+  getSummary(runId: string): Observable<ReconciliationRunSummaryResponse> {
+    return this.http.get<ReconciliationRunSummaryResponse>(
+      `${this.baseUrl}/runs/${runId}/summary`,
+    );
+  }
+
+  /**
+   * Compares operator-supplied ground-truth labels against this run's
+   * persisted deterministic results.
+   *
+   * The backend performs the entire comparison (GroundTruthComparer) and
+   * owns the pass/fail decision -- callers must render the result, never
+   * recompute any part of it. The endpoint is stateless: nothing is
+   * persisted, and the response carries no verification id or timestamp.
+   */
+  verifyGroundTruth(
+    runId: string,
+    rows: GroundTruthRow[],
+  ): Observable<GroundTruthComparisonResult> {
+    return this.http.post<GroundTruthComparisonResult>(
+      `${this.baseUrl}/runs/${runId}/ground-truth-verification`,
+      rows,
+    );
   }
 
   getResults(
@@ -100,6 +133,24 @@ export class ReconciliationApi {
     return this.http.post<AiExplanationResponse>(
       `${this.baseUrl}/exceptions/${exceptionId}/ai-explanation`,
       null,
+    );
+  }
+
+  /**
+   * Read-only audit evidence for a run, from the backend's existing
+   * audit_logs store -- the same events ReconciliationOrchestrator,
+   * BatchIngestionService, AiExplanationService and FinanceAssistantService
+   * already write. There is no corresponding write endpoint anywhere in
+   * this API; this call can only ever read.
+   */
+  getAuditLog(
+    runId: string,
+    pageNumber: number,
+    pageSize: number,
+  ): Observable<PagedResponse<AuditLogEntryResponse>> {
+    return this.http.get<PagedResponse<AuditLogEntryResponse>>(
+      `${this.baseUrl}/runs/${runId}/audit`,
+      { params: { pageNumber, pageSize } },
     );
   }
 

@@ -23,6 +23,9 @@ secrets.json
 # Generated / reproducible output
 test-data/generated/
 
+# Development password-reset sink -- these files contain live reset links
+backend/FinSight.Api/dev-password-resets/
+
 # Local certificates
 *.pfx
 *.p12

@@ -25,11 +25,11 @@ AI output above evidence, commentary above data — is a defect, not a style cho
 | Login | **Route** `/login` | Focused, minimal |
 | Batch history | **Route** `/batches` | Operations launcher — a list, not a KPI wall |
 | Batch upload | **Route** `/batches/upload` | Multi-input, multi-stage; deserves full attention |
-| Batch detail | **Route** `/batches/:batchId` | Entry point to "Run reconciliation" |
+| Batch detail | **Not a route** — no `/batches/:batchId` exists. "Run reconciliation" is triggered directly from the `/batches` list page row action. |
 | **Run workspace** | **Shared shell** `/runs/:runId` | See below |
 | Run overview | **Tab** within the run shell | The headline |
 | Results | **Tab** | Dense table |
-| Transaction evidence | **Drawer** over Results | Keeps the table visible for context — an investigation stays in flow |
+| Transaction evidence | **Routed page** `/runs/:runId/results/:resultId` | Built as a dedicated route — not a drawer — so the URL is shareable and the evidence page stands alone. `[CODE]` Source explicitly documents this choice. |
 | Exceptions | **Tab** | Queue |
 | Exception detail | **Route** `/runs/:runId/exceptions/:id` | Deep; needs prev/next queue navigation and a shareable URL |
 | AI explanation | **Contextual panel, inline, below evidence** | Never a modal. Subordination must be structural, not stylistic |
@@ -37,11 +37,13 @@ AI output above evidence, commentary above data — is a defect, not a style cho
 | Independent verification | **Tab** | Scoped to the run |
 | Destructive confirmation | **Modal** | Rare; nothing destructive exists today |
 
-### Why a drawer for evidence but a route for exception detail
+### Why a route for evidence rather than a drawer
 
-Evidence is consulted *while scanning results* — a drawer preserves the list and the
-reader's place. An exception is *worked*, one at a time, with queue navigation and a URL
-worth sharing. Different jobs, different containers.
+Both evidence and exceptions are given their own routes. Evidence at
+`/runs/:runId/results/:resultId` stands alone with a shareable URL and the full three-source
+comparison visible. An exception at `/runs/:runId/exceptions/:exceptionId` likewise gets
+its own page with queue navigation. The routed approach makes each view deep-linkable;
+the original drawer design was superseded during implementation.
 
 ---
 
@@ -89,8 +91,9 @@ The last four are run-scoped and are disabled or hidden when no run is selected.
 add a sixth item** without removing one. Enterprise menu sprawl is the failure mode this
 constraint exists to prevent.
 
-**No audit item.** `[CODE]` No audit-log read endpoint exists. Its absence is stated
-honestly in the documentation rather than faked with a dead nav entry.
+**No standalone audit nav item.** `[CODE]` The audit-log read endpoint (`GET /api/reconciliation/runs/{runId}/audit`)
+exists, but its UI is embedded directly in the Run Workspace as `AuditEvidencePanel` rather than given its own sidebar nav entry
+or route — the same pattern as Finance Assistant.
 
 ---
 

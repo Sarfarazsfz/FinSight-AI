@@ -85,15 +85,18 @@ The backend is feature-complete for the reconciliation loop and frozen. The fron
 - Reconciliation runs — union of all three sources, two matching strategies, 11 reason codes, 5 statuses
 - Run summary, paginated results, three-source transaction evidence
 - Exception listing and detail
-- AI explanation for an exception, with graceful degradation when no provider is reachable
-- Finance Assistant scoped to a run, reporting which tools it used
-- Ground-truth verification over HTTP
-- Audit trail (write path)
-- Frontend: design-token system, authentication, protected application shell, batches entry
+- AI explanation for an exception, with graceful degradation when no provider is reachable — every external provider call is bounded (30s), so an unresponsive provider degrades to the next configured one, or to a calm error, and never hangs the request indefinitely
+- Finance Assistant scoped to a run, reporting which tools it used — subject to the same bounded provider timeout
+- Ground-truth verification over HTTP, with a browser workflow at `/runs/:runId/verify` — stateless, and explicitly against operator-supplied labels
+- Run performance — `durationMs` / `recordsPerSecond` computed from each run's persisted timestamps. One wall-clock measurement per run; not a benchmark
+- Audit trail — write path (unchanged) plus a read-only, ownership-scoped viewer: `GET /api/reconciliation/runs/{runId}/audit` and a matching "Audit evidence" section on the Run Workspace, both reading the same existing `audit_logs` store. This is evidence about a run's execution (timing, throughput, which events fired), never a second source of financial truth — match status, match rate and exception counts remain whatever the reconciliation breakdown and Ground Truth Verification report
+- Batch ownership — a batch belongs to the authenticated user who created it, and every reconciliation run, result, exception, and ground-truth verification scoped to that batch is only accessible to its owner. A request for another user's batch or run returns 404, identical to a genuinely-not-found one
+- Forgot-password abuse protection — `POST /api/auth/forgot-password` is rate-limited (5 requests / 15 minutes per normalized email, 20 / 15 minutes per client IP; **429** with `Retry-After` beyond that). In-process only, not a distributed limiter; known and unknown addresses remain indistinguishable regardless of rate-limit state
+- Frontend: design-token system, authentication, protected application shell, batch upload and history, run workspace with the five-way status breakdown, run performance, and audit evidence, ground-truth verification, results and evidence, exception queue and investigation, AI explanation, Finance Assistant
 
-**Not yet built** — frontend screens for upload, reconciliation, results, exceptions, AI and verification; an audit-log read endpoint; throughput instrumentation.
+**Not yet surfaced in the UI** — ownership is enforced end-to-end but there is no visible indicator of it in the UI, and it is a single-owner boundary, not enterprise multi-tenancy — there is no organization/team/role-sharing model. Batches created before this boundary existed remain accessible only where their original `createdBy` label could be matched to a real registered account; unmatched legacy batches are inaccessible to everyone by design (safe default-deny, not a bug).
 
-**Test coverage** — 153 backend tests, 64 frontend tests.
+**Test coverage** — 352 backend tests, 400 frontend tests. 51 of the backend tests are database-backed integration tests requiring `FINSIGHT_TEST_CONNECTION`; without it they are **skipped**, so a plain `dotnet test` reports 301 passed / 0 failed / 51 skipped. Set the variable to run them. See [docs/setup](docs/setup/01-local-development.md#tests).
 
 No accuracy percentage is quoted here by design. Read it from a live run's ground-truth comparison.
 
@@ -126,11 +129,29 @@ dotnet user-secrets set "Jwt:SecretKey" "<a long random string, 32+ characters>"
 dotnet user-secrets set "Jwt:ExpirationMinutes" "60"
 ```
 
-Apply migrations and run the API:
+Apply migrations:
 
 ```bash
 cd backend/FinSight.Api
 dotnet ef database update --project ../FinSight.Infrastructure
+```
+
+Create the first user — a fresh database has no accounts. You are prompted for the
+password with no echo; it is never passed as an argument:
+
+```bash
+dotnet run -- create-user --email operator@example.com --role Admin
+```
+
+Roles are `Admin` or `User` (exact, case-sensitive). Once the app is running, further
+standard accounts can also be created through `/signup`; `create-user` remains the only
+way to create an Admin. See
+[docs/setup/01-local-development.md](docs/setup/01-local-development.md) for the
+non-interactive form, the password-reset flow, and how to test reset links locally.
+
+Run the API:
+
+```bash
 dotnet run
 ```
 
@@ -145,6 +166,31 @@ npm start
 ```
 
 The application is served on `http://localhost:4200`, which the API's development CORS policy allows by default.
+
+## Walking through the product
+
+Generate a dataset (seed-fixed at 100 transactions, so every machine produces the same one — nothing is committed):
+
+```bash
+cd backend/FinSight.DataGenerator
+dotnet run
+```
+
+Then, signed in at `http://localhost:4200`:
+
+| # | Route | What to look at |
+|---|---|---|
+| 1 | `/batches/upload` | Upload the generated `payments.csv`, `bank.csv`, `settlements.csv` |
+| 2 | `/batches` | Press **Run reconciliation** on the new batch |
+| 3 | `/runs/:runId` | Match rate, the **five-count breakdown** (matched · mismatched · missing · duplicate · unresolved, summing to the total), and **Run performance** |
+| 4 | `/runs/:runId/exceptions` → detail | The three source rows behind one classification, then request the AI explanation *below* that evidence |
+| 5 | `/runs/:runId` — right-hand rail | The Finance Assistant, reporting which read-only tools it used. **Not a route** — it is a panel in the run workspace (a drawer below 1024px) |
+| 6 | `/runs/:runId/verify` | Upload the generated `ground-truth.csv` → **PASS/FAIL**, expected-vs-actual, and every failure verbatim |
+| 7 | `/runs/:runId/results` | Every reconciliation unit, server-paginated |
+
+Expected for the seeded dataset: **70 matched · 10 mismatched · 12 missing · 6 duplicate · 2 unresolved**, match rate **70.00%**, and ground-truth verification **PASS**.
+
+The full presenter script is in [docs/delivery/02-demo-runbook.md](docs/delivery/02-demo-runbook.md).
 
 ## Tests
 
@@ -189,4 +235,8 @@ Full documentation lives in [`docs/`](docs/README.md) — product scope, system 
 
 ## Notes
 
-There is no user registration endpoint; accounts are provisioned directly. No secret, key, or connection string is committed to this repository.
+Accounts can be created two ways. `dotnet run -- create-user` provisions offline and is the only path that can create an **Admin**; `/signup` is normal self-service account creation and always produces a standard user — the request carries no role field, so a public caller cannot ask for elevated privileges. Both hash through the same password service the login path verifies against, and neither accepts, prints, or logs a password.
+
+Password reset is single-use and time-limited, and only a hash of each reset token is stored. `/forgot-password` returns the same response whether or not an account exists, to avoid account enumeration. **No email provider is configured** — in Development reset links are written to a local git-ignored file sink; see [docs/setup](docs/setup/01-local-development.md#testing-password-reset-locally).
+
+No secret, key, connection string, or default credential is committed to this repository.

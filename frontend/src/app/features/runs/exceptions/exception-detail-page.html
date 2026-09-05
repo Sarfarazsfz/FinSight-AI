@@ -1,61 +1,82 @@
-<div class="max-w-[900px]">
-  <div class="flex flex-wrap items-start justify-between gap-4">
+<div class="h-full min-h-0 overflow-y-auto flex flex-col px-6 py-8 lg:px-10 lg:py-10">
+<div class="max-w-[1040px] w-full flex flex-col gap-6">
+  <!-- Page Header with Top-Right Back Action -->
+  <div class="shrink-0 pb-4 border-b border-[var(--lp-border-subtle)] flex flex-wrap items-start justify-between gap-4">
     <div>
-      <h1
-        id="exception-heading"
-        #resultHeading
-        tabindex="-1"
-        class="text-h1 outline-none"
-      >
-        {{ exception()?.transactionReference ?? 'Exception' }}
-      </h1>
-      <p class="text-body text-text-muted mt-2 max-w-[60ch]">
+      <div class="flex items-center gap-2.5">
+        <h1
+          id="exception-heading"
+          #resultHeading
+          tabindex="-1"
+          class="text-h1 font-bold text-[var(--lp-ink)] outline-none tracking-tight"
+        >
+          {{ exception()?.transactionReference ?? 'Exception' }}
+        </h1>
+        <span class="px-2.5 py-0.5 rounded-full bg-[#FAF2E2] border border-[#ECD9BA] text-meta font-mono font-medium text-[var(--lp-accent)]">
+          Exception Review
+        </span>
+      </div>
+      <p class="text-body text-[var(--lp-text-muted)] mt-1.5 max-w-[60ch] leading-relaxed">
         Source evidence and discrepancy detail for this reconciliation exception.
       </p>
     </div>
 
     <a
       [routerLink]="['/runs', runId(), 'exceptions']"
-      class="h-10 px-4 inline-flex items-center rounded-md border border-border-strong
-             text-small font-semibold hover:border-text-faint transition-colors shrink-0"
+      class="btn-nav-back h-10 px-4 inline-flex items-center gap-2 rounded-lg border border-[var(--lp-border-strong)] bg-white text-small font-semibold text-[var(--lp-ink)] hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] hover:bg-[#FAF2E2]/30 active:scale-98 transition-all shrink-0 shadow-2xs cursor-pointer"
     >
-      ← Back to exceptions
+      <svg class="btn-arrow-back h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M10 3.5 5.5 8 10 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span>Back to exceptions</span>
     </a>
   </div>
 
-  <section class="mt-8" aria-labelledby="exception-heading">
+  <section aria-labelledby="exception-heading" class="flex flex-col gap-6">
     <p class="sr-only" aria-live="polite" [attr.aria-busy]="state() === 'loading'">
       {{ liveRegionText() }}
     </p>
 
     @switch (state()) {
       @case ('loading') {
-        <div class="mt-2 flex flex-col gap-3" aria-hidden="true" data-testid="detail-loading">
-          <span class="block h-5 w-40 rounded bg-surface-sunken animate-pulse"></span>
-          <span class="block h-4 w-64 rounded bg-surface-sunken animate-pulse"></span>
-          <span class="block h-32 w-full rounded bg-surface-sunken animate-pulse mt-4"></span>
+        <div class="flex flex-col gap-6" aria-hidden="true" data-testid="detail-loading">
+          <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-6 shadow-xs flex flex-col gap-3">
+            <span class="block h-6 w-48 rounded bg-[#F5F3EF] animate-pulse"></span>
+            <span class="block h-4 w-64 rounded bg-[#F5F3EF] animate-pulse"></span>
+          </div>
+          <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-6 shadow-xs flex flex-col gap-4">
+            <span class="block h-5 w-36 rounded bg-[#F5F3EF] animate-pulse"></span>
+            <span class="block h-28 w-full rounded bg-[#F5F3EF] animate-pulse"></span>
+          </div>
+          <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-6 shadow-xs flex flex-col gap-4">
+            <span class="block h-5 w-36 rounded bg-[#F5F3EF] animate-pulse"></span>
+            <span class="block h-24 w-full rounded bg-[#F5F3EF] animate-pulse"></span>
+          </div>
         </div>
       }
+
       @case ('loaded') {
+        <!-- Sibling Navigation Strip -->
         <nav
-          class="mt-2 flex items-center justify-between gap-4"
+          class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-3 sm:px-5 sm:py-3.5 shadow-xs flex flex-wrap items-center justify-between gap-3"
           aria-label="Exception navigation"
           data-testid="exception-navigation"
         >
           <button
             type="button"
-            class="h-9 px-3 rounded-md border border-border-strong text-small font-semibold
-                   hover:border-text-faint disabled:opacity-45 disabled:cursor-not-allowed
-                   transition-colors"
+            class="h-9 px-3.5 rounded-lg border border-[var(--lp-border-strong)] bg-white text-small font-semibold text-[var(--lp-ink)] hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[var(--lp-border-strong)] disabled:hover:text-[var(--lp-ink)] active:scale-98 transition-all inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
             [disabled]="!hasPrevious() || navigatingBoundary()"
             [attr.aria-disabled]="!hasPrevious() || navigatingBoundary()"
             aria-label="Previous exception"
             (click)="goToPrevious()"
           >
-            ← Previous
+            <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M10 3.5 5.5 8 10 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Previous</span>
           </button>
 
-          <span class="text-small text-text-muted">
+          <span class="text-meta font-mono font-medium text-[var(--lp-text-muted)] bg-[#FAF9F6] px-3 py-1.5 rounded-lg border border-[var(--lp-border)]">
             @if (queueTotalPages() > 0) {
               Queue page {{ queuePageNumber() }} of {{ queueTotalPages() }}
             }
@@ -63,163 +84,242 @@
 
           <button
             type="button"
-            class="h-9 px-3 rounded-md border border-border-strong text-small font-semibold
-                   hover:border-text-faint disabled:opacity-45 disabled:cursor-not-allowed
-                   transition-colors"
+            class="h-9 px-3.5 rounded-lg border border-[var(--lp-border-strong)] bg-white text-small font-semibold text-[var(--lp-ink)] hover:border-[var(--lp-accent)] hover:text-[var(--lp-accent)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[var(--lp-border-strong)] disabled:hover:text-[var(--lp-ink)] active:scale-98 transition-all inline-flex items-center gap-1.5 shadow-2xs cursor-pointer"
             [disabled]="!hasNext() || navigatingBoundary()"
             [attr.aria-disabled]="!hasNext() || navigatingBoundary()"
             aria-label="Next exception"
             (click)="goToNext()"
           >
-            Next →
+            <span>Next</span>
+            <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M6 3.5 10.5 8 6 12.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
           </button>
         </nav>
 
-        <div class="mt-6 flex flex-wrap items-center gap-3">
-          <span
-            class="inline-flex items-center rounded-full px-2.5 py-0.5 text-small font-semibold"
-            [class]="categoryBadgeClasses(exception()!.category)"
-            data-testid="exception-category"
-          >
-            {{ exception()!.category }}
-          </span>
-          <span class="text-small text-text-muted">
-            Involved sources: {{ formatInvolvedSources(exception()!.involvedSources) }}
-          </span>
+        <!-- Exception Classification & Audit Metadata Card -->
+        <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-5 shadow-xs flex flex-col gap-4">
+          <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[var(--lp-border-subtle)]">
+            <div class="flex flex-wrap items-center gap-3">
+              <span
+                class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-small font-semibold"
+                [class]="categoryBadgeClasses(exception()!.category)"
+                data-testid="exception-category"
+              >
+                <span class="h-2 w-2 rounded-full shrink-0"
+                  [class.bg-[var(--lp-danger)]]="exception()!.category === 'AmountMismatch' || exception()!.category === 'DateMismatch'"
+                  [class.bg-[var(--lp-accent)]]="exception()!.category === 'MissingRecord'"
+                  [class.bg-purple-600]="exception()!.category === 'DuplicateRecord'"
+                  [class.bg-slate-600]="exception()!.category === 'Unresolved'"></span>
+                {{ exception()!.category }}
+              </span>
+
+              <div class="inline-flex items-center gap-1.5 text-small text-[var(--lp-text-muted)] bg-[#F5F3EF] border border-[var(--lp-border)] px-2.5 py-1 rounded-lg">
+                <span class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Involved:</span>
+                <span class="font-mono font-medium text-[var(--lp-ink)]">{{ formatInvolvedSources(exception()!.involvedSources) }}</span>
+              </div>
+            </div>
+
+            <div class="text-meta font-mono text-[var(--lp-text-faint)]">
+              Exception ID: <span class="text-[var(--lp-text-muted)] font-medium">{{ exception()!.exceptionId }}</span>
+            </div>
+          </div>
+
+          <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2">
+            <div class="flex items-baseline justify-between border-b border-[var(--lp-border-subtle)] sm:border-0 pb-1 sm:pb-0">
+              <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Created</dt>
+              <dd class="text-small font-medium text-[var(--lp-ink)]">{{ exception()!.createdAt | date: 'MMM d, y, h:mm a' }}</dd>
+            </div>
+            <div class="flex items-baseline justify-between">
+              <dt class="text-meta uppercase font-mono text-[var(--lp-text-faint)]">Updated</dt>
+              <dd class="text-small font-medium text-[var(--lp-ink)]">
+                {{ exception()!.updatedAt ? (exception()!.updatedAt | date: 'MMM d, y, h:mm a') : '—' }}
+              </dd>
+            </div>
+          </dl>
         </div>
 
-        <dl class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-2 max-w-[500px]">
-          <div>
-            <dt class="text-meta uppercase text-text-faint">Created</dt>
-            <dd class="text-small mt-1">{{ exception()!.createdAt | date: 'MMM d, y, h:mm a' }}</dd>
-          </div>
-          <div>
-            <dt class="text-meta uppercase text-text-faint">Updated</dt>
-            <dd class="text-small mt-1">
-              {{ exception()!.updatedAt ? (exception()!.updatedAt | date: 'MMM d, y, h:mm a') : '—' }}
-            </dd>
-          </div>
-        </dl>
-
-        <!-- AI explanation of the verified classification above -- positioned
-             directly below it and before detailed source evidence, per the
-             required hierarchy: (1) verified classification, (2) AI
-             explanation of that classification, (3) detailed source
-             evidence, (4) technical reconciliation evidence. Still fully
-             independent of `state()` (an AI failure/loading never hides,
-             disables, or reloads anything below) and visually subordinate
-             to the verified category/metadata above it. -->
+        <!-- AI Investigation Panel (Subordinate to verified evidence, independent reactive state) -->
         <div
-          class="mt-8 border border-border rounded-lg bg-surface-sunken px-6 py-5"
+          class="card-fintech border border-[#ECD9BA] rounded-2xl bg-[#FAF9F6] p-5 sm:p-6 shadow-xs flex flex-col gap-4"
           data-testid="ai-panel"
         >
-          <h2 class="text-small font-semibold text-text-muted uppercase tracking-wide">
-            AI explanation
-          </h2>
+          <div class="flex items-center justify-between pb-3 border-b border-[#ECD9BA]/60">
+            <div class="flex items-center gap-2.5">
+              <div class="h-8 w-8 rounded-lg bg-[#FAF2E2] border border-[#ECD9BA] flex items-center justify-center text-[var(--lp-accent)] shadow-2xs">
+                <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path d="M8 1.5v13M1.5 8h13M3.5 3.5l9 9M3.5 12.5l9-9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div>
+                <h2 class="text-small font-bold text-[var(--lp-ink)] tracking-tight">
+                  AI Investigation
+                </h2>
+                <p class="text-meta text-[var(--lp-text-faint)]">
+                  Grounded on deterministic engine evidence · Verified classification remains primary
+                </p>
+              </div>
+            </div>
+
+            <div class="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded text-meta font-mono bg-white border border-[#ECD9BA] text-[var(--lp-accent)]">
+              <svg class="h-3 w-3" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="M8 1.5 2 4.5v4c0 3.5 2.5 6.5 6 7.5 3.5-1 6-4 6-7.5v-4L8 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                <path d="m5.5 8 2 2 3.5-3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <span>Explainable AI</span>
+            </div>
+          </div>
 
           @switch (aiState()) {
             @case ('idle') {
-              <div data-testid="ai-idle" class="mt-3">
-                <p class="text-small text-text-muted max-w-[60ch]">
-                  Optional -- the classification above is already complete without it.
-                </p>
+              <div data-testid="ai-idle" class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-xl bg-white border border-[var(--lp-border)]">
+                <div>
+                  <p class="text-small font-medium text-[var(--lp-ink)]">
+                    Generate an automated discrepancy explanation
+                  </p>
+                  <p class="text-meta text-[var(--lp-text-muted)] mt-0.5 max-w-[60ch]">
+                    Optional — the classification above is already complete without it.
+                  </p>
+                </div>
                 <button
                   type="button"
-                  class="mt-3 h-9 px-3 rounded-md border border-border-strong text-small font-semibold
-                         text-text-muted hover:border-text-faint transition-colors"
+                  class="btn-primary-amber h-9 px-4 rounded-lg text-small font-semibold shadow-2xs inline-flex items-center gap-2 shrink-0 cursor-pointer"
                   data-testid="ai-explain-button"
                   (click)="requestAiExplanation()"
                 >
-                  Explain this exception
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M8 1.5v13M1.5 8h13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                  </svg>
+                  <span>Explain this exception</span>
                 </button>
               </div>
             }
+
             @case ('loading') {
-              <div data-testid="ai-loading" class="mt-3 flex items-center gap-2" aria-live="polite">
-                <span class="block h-4 w-4 rounded-full border-2 border-text-faint border-t-transparent animate-spin"></span>
-                <span class="text-small text-text-muted">Generating explanation…</span>
-              </div>
-            }
-            @case ('loaded') {
-              <div data-testid="ai-loaded" class="mt-3 flex flex-col gap-3">
-                <p class="text-small text-text-muted whitespace-pre-wrap" data-testid="ai-explanation-text">
-                  {{ aiExplanation()!.explanation }}
-                </p>
-
-                @if (aiExplanation()!.suggestedCategory) {
-                  <div
-                    class="inline-flex w-fit items-center gap-1.5 rounded-full border border-dashed
-                           border-border-strong px-2.5 py-0.5 text-meta text-text-muted"
-                    data-testid="ai-suggested-category"
-                  >
-                    <span class="font-semibold">Suggested · not verified:</span>
-                    {{ aiExplanation()!.suggestedCategory }}
-                  </div>
-                }
-
-                <div class="flex flex-wrap gap-x-4 gap-y-1 text-meta text-text-faint">
-                  @if (aiExplanation()!.provider) {
-                    <span data-testid="ai-provider">{{ aiExplanation()!.provider }}</span>
-                  }
-                  @if (aiExplanation()!.generatedAtUtc) {
-                    <span data-testid="ai-generated-at">
-                      {{ aiExplanation()!.generatedAtUtc | date: 'MMM d, y, h:mm a' }}
-                    </span>
-                  }
+              <div data-testid="ai-loading" class="flex items-center gap-3 p-5 rounded-xl bg-white border border-[var(--lp-border)]" aria-live="polite">
+                <div class="h-5 w-5 rounded-full border-2 border-[var(--lp-accent)] border-t-transparent animate-spin shrink-0"></div>
+                <div>
+                  <p class="text-small font-semibold text-[var(--lp-ink)]">Generating explanation…</p>
+                  <p class="text-meta text-[var(--lp-text-muted)]">Correlating feeds and identifying root cause.</p>
                 </div>
               </div>
             }
-            @case ('error') {
-              <div data-testid="ai-error" class="mt-3 flex flex-col gap-3">
-                <p class="text-small text-text-muted" data-testid="ai-error-message">
-                  {{ aiErrorMessage() }}
+
+            @case ('loaded') {
+              <div data-testid="ai-loaded" class="flex flex-col gap-4 p-5 rounded-xl bg-white border border-[var(--lp-border)]">
+                <p class="text-body text-[var(--lp-ink)] whitespace-pre-wrap leading-relaxed" data-testid="ai-explanation-text">
+                  {{ aiExplanation()!.explanation }}
                 </p>
+
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[var(--lp-border-subtle)]">
+                  @if (aiExplanation()!.suggestedCategory) {
+                    <div
+                      class="inline-flex items-center gap-1.5 rounded-full border border-dashed border-[#ECD9BA] bg-[#FAF2E2]/60 px-3 py-1 text-meta text-[var(--lp-accent)] font-medium"
+                      data-testid="ai-suggested-category"
+                    >
+                      <span class="font-bold">Suggested · not verified:</span>
+                      <span>{{ aiExplanation()!.suggestedCategory }}</span>
+                    </div>
+                  }
+
+                  <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-meta font-mono text-[var(--lp-text-faint)]">
+                    @if (aiExplanation()!.provider) {
+                      <span class="inline-flex items-center gap-1 bg-[#F5F3EF] px-2 py-0.5 rounded border border-[var(--lp-border)]" data-testid="ai-provider">
+                        Model: {{ aiExplanation()!.provider }}
+                      </span>
+                    }
+                    @if (aiExplanation()!.generatedAtUtc) {
+                      <span data-testid="ai-generated-at">
+                        Generated: {{ aiExplanation()!.generatedAtUtc | date: 'MMM d, y, h:mm a' }}
+                      </span>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+
+            @case ('error') {
+              <div data-testid="ai-error" class="flex flex-col gap-3 p-5 rounded-xl bg-[#FDF5F3] border border-[var(--lp-danger)]">
+                <div class="flex items-center gap-2 text-[var(--lp-danger)]">
+                  <svg class="h-4 w-4 shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M8 5.5v3M8 11.5h.01M8 1.5 14.5 13H1.5L8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <p class="text-small font-semibold" data-testid="ai-error-message">
+                    {{ aiErrorMessage() }}
+                  </p>
+                </div>
                 <button
                   type="button"
-                  class="h-9 px-3 w-fit rounded-md border border-border-strong text-small font-semibold
-                         text-text-muted hover:border-text-faint transition-colors"
+                  class="h-9 px-4 w-fit rounded-lg bg-[var(--lp-ink)] text-white text-small font-semibold hover:bg-black active:scale-98 transition-all inline-flex items-center gap-1.5 cursor-pointer shadow-2xs"
                   data-testid="ai-retry-button"
                   (click)="requestAiExplanation()"
                 >
-                  Retry
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <path d="M2.5 8a5.5 5.5 0 0 1 9.39-3.89L13.5 5.5M13.5 2v3.5H10M13.5 8a5.5 5.5 0 0 1-9.39 3.89L2.5 10.5M2.5 14v-3.5H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                  <span>Retry</span>
                 </button>
               </div>
             }
           }
         </div>
 
-        <!-- Detailed source evidence -- verified backend data, positioned
-             after the AI explanation of the classification but still above
-             the raw technical discrepancy JSON. -->
+        <!-- Detailed Source Evidence (3 Cards) -->
         @if (evidence()) {
-          <div class="mt-8 flex flex-col gap-8">
-            <div data-testid="evidence-section-payment">
-              <h2 class="text-h3">Payment records</h2>
+          <div class="flex flex-col gap-6">
+            <!-- 1. Payment Records Card -->
+            <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl overflow-hidden shadow-xs" data-testid="evidence-section-payment">
+              <div class="px-5 py-4 bg-[#FAF9F6] border-b border-[var(--lp-border)] flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <div class="h-8 w-8 rounded-lg bg-[#FAF2E2] border border-[#ECD9BA] flex items-center justify-center text-[var(--lp-accent)] shadow-2xs">
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <rect x="1.5" y="3" width="13" height="10" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                      <path d="M1.5 6.5h13M4.5 10h2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                  </div>
+                  <h2 class="text-h3 font-bold text-[var(--lp-ink)]">Payment records</h2>
+                </div>
+                <span class="px-2.5 py-0.5 rounded-full text-meta font-mono font-medium border"
+                  [class]="evidence()!.payments.length > 0 ? 'bg-[#E8F3F1] border-[#C5E4DE] text-[var(--lp-teal)]' : 'bg-[#F5F3EF] border-[var(--lp-border)] text-[var(--lp-text-muted)]'">
+                  {{ evidence()!.payments.length }} {{ evidence()!.payments.length === 1 ? 'record' : 'records' }}
+                </span>
+              </div>
+
               @if (evidence()!.payments.length === 0) {
-                <p class="mt-2 text-small text-text-muted">No matching payment record.</p>
+                <div class="p-6 flex items-center gap-3 text-[var(--lp-text-muted)] bg-[#FAF9F6]/50">
+                  <svg class="h-5 w-5 text-[var(--lp-accent)] shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M8 5v3M8 11h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                  </svg>
+                  <p class="text-small">No matching payment record.</p>
+                </div>
               } @else {
-                <div class="mt-2 overflow-x-auto">
-                  <table class="w-full border-collapse">
+                <div class="overflow-x-auto">
+                  <table class="w-full border-collapse text-left min-w-[640px]">
                     <caption class="sr-only">Payment records</caption>
                     <thead>
-                      <tr class="border-b border-border">
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Record ID</th>
-                        <th scope="col" class="text-right text-meta uppercase text-text-faint py-2 pr-4">Amount</th>
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Currency</th>
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Date</th>
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Status</th>
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2">Created</th>
+                      <tr class="border-b border-[var(--lp-border)] bg-[#F5F3EF]/50">
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Record ID</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)] text-right">Amount</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Currency</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Date</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Status</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Created</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="divide-y divide-[var(--lp-border-subtle)]">
                       @for (rec of evidence()!.payments; track rec.id) {
-                        <tr class="border-b border-border" data-testid="evidence-row-payment">
-                          <td class="py-3 pr-4 text-small">{{ rec.sourceRecordIdentifier }}</td>
-                          <td class="py-3 pr-4 text-small text-right tabular">{{ rec.amount }}</td>
-                          <td class="py-3 pr-4 text-small">{{ rec.currency }}</td>
-                          <td class="py-3 pr-4 text-small">{{ rec.transactionDate }}</td>
-                          <td class="py-3 pr-4 text-small">{{ rec.status }}</td>
-                          <td class="py-3 text-small">{{ rec.createdAt | date: 'MMM d, y, h:mm a' }}</td>
+                        <tr class="hover:bg-[#FAF9F6]/80 transition-colors" data-testid="evidence-row-payment">
+                          <td class="py-3 px-4 text-small font-mono font-medium text-[var(--lp-ink)]">{{ rec.sourceRecordIdentifier }}</td>
+                          <td class="py-3 px-4 text-small text-right font-mono font-bold text-[var(--lp-ink)] tabular">{{ rec.amount }}</td>
+                          <td class="py-3 px-4 text-small font-mono text-[var(--lp-text-muted)]">{{ rec.currency }}</td>
+                          <td class="py-3 px-4 text-small font-mono tabular text-[var(--lp-text-muted)]">{{ rec.transactionDate }}</td>
+                          <td class="py-3 px-4">
+                            <span class="inline-flex px-2 py-0.5 rounded text-meta font-mono font-medium bg-[#F5F3EF] border border-[var(--lp-border)] text-[var(--lp-ink)]">
+                              {{ rec.status }}
+                            </span>
+                          </td>
+                          <td class="py-3 px-4 text-small text-[var(--lp-text-muted)]">{{ rec.createdAt | date: 'MMM d, y, h:mm a' }}</td>
                         </tr>
                       }
                     </tbody>
@@ -228,33 +328,58 @@
               }
             </div>
 
-            <div data-testid="evidence-section-bank">
-              <h2 class="text-h3">Bank records</h2>
+            <!-- 2. Bank Records Card -->
+            <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl overflow-hidden shadow-xs" data-testid="evidence-section-bank">
+              <div class="px-5 py-4 bg-[#FAF9F6] border-b border-[var(--lp-border)] flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <div class="h-8 w-8 rounded-lg bg-[#FAF2E2] border border-[#ECD9BA] flex items-center justify-center text-[var(--lp-accent)] shadow-2xs">
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M1.5 5.5 8 2l6.5 3.5v1.5H1.5V5.5ZM3 7v4.5M6.5 7v4.5M9.5 7v4.5M13 7v4.5M1.5 13.5h13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                  <h2 class="text-h3 font-bold text-[var(--lp-ink)]">Bank records</h2>
+                </div>
+                <span class="px-2.5 py-0.5 rounded-full text-meta font-mono font-medium border"
+                  [class]="evidence()!.banks.length > 0 ? 'bg-[#E8F3F1] border-[#C5E4DE] text-[var(--lp-teal)]' : 'bg-[#F5F3EF] border-[var(--lp-border)] text-[var(--lp-text-muted)]'">
+                  {{ evidence()!.banks.length }} {{ evidence()!.banks.length === 1 ? 'record' : 'records' }}
+                </span>
+              </div>
+
               @if (evidence()!.banks.length === 0) {
-                <p class="mt-2 text-small text-text-muted">No matching bank record.</p>
+                <div class="p-6 flex items-center gap-3 text-[var(--lp-text-muted)] bg-[#FAF9F6]/50">
+                  <svg class="h-5 w-5 text-[var(--lp-accent)] shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M8 5v3M8 11h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                  </svg>
+                  <p class="text-small">No matching bank record.</p>
+                </div>
               } @else {
-                <div class="mt-2 overflow-x-auto">
-                  <table class="w-full border-collapse">
+                <div class="overflow-x-auto">
+                  <table class="w-full border-collapse text-left min-w-[640px]">
                     <caption class="sr-only">Bank records</caption>
                     <thead>
-                      <tr class="border-b border-border">
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Record ID</th>
-                        <th scope="col" class="text-right text-meta uppercase text-text-faint py-2 pr-4">Amount</th>
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Currency</th>
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Date</th>
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Status</th>
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2">Created</th>
+                      <tr class="border-b border-[var(--lp-border)] bg-[#F5F3EF]/50">
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Record ID</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)] text-right">Amount</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Currency</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Date</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Status</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Created</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="divide-y divide-[var(--lp-border-subtle)]">
                       @for (rec of evidence()!.banks; track rec.id) {
-                        <tr class="border-b border-border" data-testid="evidence-row-bank">
-                          <td class="py-3 pr-4 text-small">{{ rec.sourceRecordIdentifier }}</td>
-                          <td class="py-3 pr-4 text-small text-right tabular">{{ rec.amount }}</td>
-                          <td class="py-3 pr-4 text-small">{{ rec.currency }}</td>
-                          <td class="py-3 pr-4 text-small">{{ rec.transactionDate }}</td>
-                          <td class="py-3 pr-4 text-small">{{ rec.status }}</td>
-                          <td class="py-3 text-small">{{ rec.createdAt | date: 'MMM d, y, h:mm a' }}</td>
+                        <tr class="hover:bg-[#FAF9F6]/80 transition-colors" data-testid="evidence-row-bank">
+                          <td class="py-3 px-4 text-small font-mono font-medium text-[var(--lp-ink)]">{{ rec.sourceRecordIdentifier }}</td>
+                          <td class="py-3 px-4 text-small text-right font-mono font-bold text-[var(--lp-ink)] tabular">{{ rec.amount }}</td>
+                          <td class="py-3 px-4 text-small font-mono text-[var(--lp-text-muted)]">{{ rec.currency }}</td>
+                          <td class="py-3 px-4 text-small font-mono tabular text-[var(--lp-text-muted)]">{{ rec.transactionDate }}</td>
+                          <td class="py-3 px-4">
+                            <span class="inline-flex px-2 py-0.5 rounded text-meta font-mono font-medium bg-[#F5F3EF] border border-[var(--lp-border)] text-[var(--lp-ink)]">
+                              {{ rec.status }}
+                            </span>
+                          </td>
+                          <td class="py-3 px-4 text-small text-[var(--lp-text-muted)]">{{ rec.createdAt | date: 'MMM d, y, h:mm a' }}</td>
                         </tr>
                       }
                     </tbody>
@@ -263,33 +388,59 @@
               }
             </div>
 
-            <div data-testid="evidence-section-settlement">
-              <h2 class="text-h3">Settlement records</h2>
+            <!-- 3. Settlement Records Card -->
+            <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl overflow-hidden shadow-xs" data-testid="evidence-section-settlement">
+              <div class="px-5 py-4 bg-[#FAF9F6] border-b border-[var(--lp-border)] flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                  <div class="h-8 w-8 rounded-lg bg-[#FAF2E2] border border-[#ECD9BA] flex items-center justify-center text-[var(--lp-accent)] shadow-2xs">
+                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M2.5 13.5V2.5h11v11L11 12l-2.5 1.5L6 12l-3.5 1.5Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+                      <path d="M5.5 5.5h5M5.5 8.5h5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                  </div>
+                  <h2 class="text-h3 font-bold text-[var(--lp-ink)]">Settlement records</h2>
+                </div>
+                <span class="px-2.5 py-0.5 rounded-full text-meta font-mono font-medium border"
+                  [class]="evidence()!.settlements.length > 0 ? 'bg-[#E8F3F1] border-[#C5E4DE] text-[var(--lp-teal)]' : 'bg-[#F5F3EF] border-[var(--lp-border)] text-[var(--lp-text-muted)]'">
+                  {{ evidence()!.settlements.length }} {{ evidence()!.settlements.length === 1 ? 'record' : 'records' }}
+                </span>
+              </div>
+
               @if (evidence()!.settlements.length === 0) {
-                <p class="mt-2 text-small text-text-muted">No matching settlement record.</p>
+                <div class="p-6 flex items-center gap-3 text-[var(--lp-text-muted)] bg-[#FAF9F6]/50">
+                  <svg class="h-5 w-5 text-[var(--lp-accent)] shrink-0" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M8 5v3M8 11h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                  </svg>
+                  <p class="text-small">No matching settlement record.</p>
+                </div>
               } @else {
-                <div class="mt-2 overflow-x-auto">
-                  <table class="w-full border-collapse">
+                <div class="overflow-x-auto">
+                  <table class="w-full border-collapse text-left min-w-[640px]">
                     <caption class="sr-only">Settlement records</caption>
                     <thead>
-                      <tr class="border-b border-border">
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Record ID</th>
-                        <th scope="col" class="text-right text-meta uppercase text-text-faint py-2 pr-4">Amount</th>
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Currency</th>
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Date</th>
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2 pr-4">Status</th>
-                        <th scope="col" class="text-left text-meta uppercase text-text-faint py-2">Created</th>
+                      <tr class="border-b border-[var(--lp-border)] bg-[#F5F3EF]/50">
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Record ID</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)] text-right">Amount</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Currency</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Date</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Status</th>
+                        <th scope="col" class="py-2.5 px-4 text-meta uppercase font-mono text-[var(--lp-text-faint)]">Created</th>
                       </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="divide-y divide-[var(--lp-border-subtle)]">
                       @for (rec of evidence()!.settlements; track rec.id) {
-                        <tr class="border-b border-border" data-testid="evidence-row-settlement">
-                          <td class="py-3 pr-4 text-small">{{ rec.sourceRecordIdentifier }}</td>
-                          <td class="py-3 pr-4 text-small text-right tabular">{{ rec.amount }}</td>
-                          <td class="py-3 pr-4 text-small">{{ rec.currency }}</td>
-                          <td class="py-3 pr-4 text-small">{{ rec.transactionDate }}</td>
-                          <td class="py-3 pr-4 text-small">{{ rec.status }}</td>
-                          <td class="py-3 text-small">{{ rec.createdAt | date: 'MMM d, y, h:mm a' }}</td>
+                        <tr class="hover:bg-[#FAF9F6]/80 transition-colors" data-testid="evidence-row-settlement">
+                          <td class="py-3 px-4 text-small font-mono font-medium text-[var(--lp-ink)]">{{ rec.sourceRecordIdentifier }}</td>
+                          <td class="py-3 px-4 text-small text-right font-mono font-bold text-[var(--lp-ink)] tabular">{{ rec.amount }}</td>
+                          <td class="py-3 px-4 text-small font-mono text-[var(--lp-text-muted)]">{{ rec.currency }}</td>
+                          <td class="py-3 px-4 text-small font-mono tabular text-[var(--lp-text-muted)]">{{ rec.transactionDate }}</td>
+                          <td class="py-3 px-4">
+                            <span class="inline-flex px-2 py-0.5 rounded text-meta font-mono font-medium bg-[#F5F3EF] border border-[var(--lp-border)] text-[var(--lp-ink)]">
+                              {{ rec.status }}
+                            </span>
+                          </td>
+                          <td class="py-3 px-4 text-small text-[var(--lp-text-muted)]">{{ rec.createdAt | date: 'MMM d, y, h:mm a' }}</td>
                         </tr>
                       }
                     </tbody>
@@ -300,73 +451,90 @@
           </div>
         }
 
-        <div class="mt-8">
-          <h2 id="discrepancy-heading" class="text-h3">Discrepancy detail</h2>
-          <p class="mt-1 text-small text-text-faint max-w-[60ch]">
-            Technical reconciliation evidence produced by the deterministic engine.
-          </p>
+        <!-- Technical Discrepancy JSON Disclosure -->
+        <div class="card-fintech bg-white border border-[var(--lp-border)] rounded-2xl p-5 shadow-xs flex flex-col gap-3">
+          <div>
+            <h2 id="discrepancy-heading" class="text-h3 font-bold text-[var(--lp-ink)]">Discrepancy detail</h2>
+            <p class="mt-0.5 text-small text-[var(--lp-text-muted)] max-w-[60ch]">
+              Technical reconciliation evidence produced by the deterministic engine.
+            </p>
+          </div>
 
-          <!-- Native disclosure: keyboard-accessible by default (Enter/Space
-               on the focused summary), exposes expanded/collapsed state to
-               assistive technology natively, and needs no JS or signal.
-               Collapsed by default -- the raw JSON is unchanged, only its
-               default visibility changes. -->
-          <details class="mt-2" data-testid="discrepancy-disclosure">
+          <details class="mt-1" data-testid="discrepancy-disclosure">
             <summary
-              class="w-fit text-small font-semibold text-text-faint cursor-pointer select-none
-                     hover:text-text-muted transition-colors"
+              class="w-fit text-small font-semibold text-[var(--lp-accent)] hover:text-[#A96F22] cursor-pointer select-none py-1 inline-flex items-center gap-1.5 transition-colors"
               data-testid="discrepancy-toggle"
             >
-              Show technical details
+              <span>Show technical details</span>
             </summary>
-            <div class="mt-2 overflow-x-auto">
+            <div class="mt-3 overflow-x-auto">
               <pre
                 aria-labelledby="discrepancy-heading"
                 tabindex="0"
-                class="text-small bg-surface-sunken rounded-md px-4 py-3 whitespace-pre"
+                class="text-meta font-mono bg-[#F5F3EF] border border-[var(--lp-border)] rounded-xl p-4 whitespace-pre text-[var(--lp-ink)] leading-relaxed"
                 data-testid="discrepancy-detail"
               >{{ discrepancyPretty() }}</pre>
             </div>
           </details>
         </div>
       }
+
       @case ('not-found') {
         <div
           data-testid="detail-not-found"
-          class="mt-8 border border-border rounded-lg bg-surface px-6 py-12
-                 flex flex-col items-center text-center gap-2"
+          class="card-fintech border border-[var(--lp-border)] rounded-2xl bg-white p-8 sm:p-12 flex flex-col items-center text-center gap-4 shadow-xs"
         >
-          <p class="text-h3">Exception not found</p>
-          <p class="text-small text-text-muted max-w-[46ch]">
-            This reconciliation exception doesn't exist, or the link is out of date.
-          </p>
+          <div class="h-12 w-12 rounded-full bg-[#FAF2E2] border border-[#ECD9BA] flex items-center justify-center text-[var(--lp-accent)] shadow-2xs">
+            <svg class="h-6 w-6" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="8" cy="8" r="6" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M8 5v3M8 11h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-h3 font-bold text-[var(--lp-ink)]">Exception not found</p>
+            <p class="text-small text-[var(--lp-text-muted)] max-w-[46ch] mt-1">
+              This reconciliation exception doesn't exist, or the link is out of date.
+            </p>
+          </div>
           <a
             [routerLink]="['/runs', runId(), 'exceptions']"
-            class="mt-2 h-10 px-4 inline-flex items-center rounded-md bg-ink text-on-ink
-                   text-small font-semibold hover:bg-ink-strong transition-colors"
+            class="btn-primary-amber h-10 px-5 inline-flex items-center gap-2 rounded-lg text-small font-semibold shadow-xs cursor-pointer mt-2"
           >
-            Back to exceptions
+            <span>Back to exceptions</span>
           </a>
         </div>
       }
+
       @case ('error') {
         <div
           data-testid="detail-error"
-          class="mt-8 border border-danger rounded-lg bg-danger-bg px-6 py-8
-                 flex flex-col items-center text-center gap-3"
+          class="card-fintech border border-[var(--lp-danger)] rounded-2xl bg-[#FDF5F3] p-8 flex flex-col items-center text-center gap-4 shadow-xs"
           role="alert"
         >
-          <p class="text-body font-semibold text-danger">{{ errorMessage() }}</p>
+          <div class="h-10 w-10 rounded-full bg-[#FAF2E2] border border-[#ECD9BA] flex items-center justify-center text-[var(--lp-danger)]">
+            <svg class="h-5 w-5" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M8 5.5v3M8 11.5h.01M8 1.5 14.5 13H1.5L8 1.5Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-body font-semibold text-[var(--lp-danger)]">{{ errorMessage() }}</p>
+            <p class="text-meta text-[var(--lp-text-muted)] mt-1">
+              Please check your connection and retry loading this exception.
+            </p>
+          </div>
           <button
             type="button"
-            class="h-10 px-4 rounded-md bg-ink text-on-ink text-small font-semibold
-                   hover:bg-ink-strong transition-colors"
+            class="h-10 px-5 rounded-lg bg-[var(--lp-ink)] text-white text-small font-semibold hover:bg-black active:scale-98 transition-all inline-flex items-center gap-2 cursor-pointer shadow-xs"
             (click)="retry()"
           >
-            Retry
+            <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M2.5 8a5.5 5.5 0 0 1 9.39-3.89L13.5 5.5M13.5 2v3.5H10M13.5 8a5.5 5.5 0 0 1-9.39 3.89L2.5 10.5M2.5 14v-3.5H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span>Retry</span>
           </button>
         </div>
       }
     }
   </section>
+</div>
 </div>

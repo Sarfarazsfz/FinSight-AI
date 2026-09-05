@@ -43,6 +43,7 @@ UPLOAD → VALIDATE → RECONCILE → UNDERSTAND
 
 | Stage | What happens | Backend `[CODE]` |
 |---|---|---|
+| **Generate** *(optional)* | Parametrised synthetic dataset with independent ground truth | `POST /api/test-data/generate` |
 | **Upload** | Three CSVs ingested against a labelled batch | `POST /api/batches` |
 | **Validate** | Every row checked before reconciliation; failures returned per-row, per-field | `ProblemDetails.errors[]` |
 | **Reconcile** | Union of all three sources' references, two matching strategies, reason-coded classifier | `POST /api/reconciliation/runs` |
@@ -86,7 +87,7 @@ like an analytics template.
 | # | Persona | Goal | Design consequence |
 |---|---|---|---|
 | **1** | **Finance operations analyst** (primary) | Run a batch, work the exception queue, gather evidence | Dense data, keyboard-fast, zero decoration, queue navigation |
-| **2** | **Finance controller** (secondary) | Headline only: match rate, exception count, is it verified | Run Overview must answer in two seconds and be readable alone |
+| **2** | **Finance controller** (secondary) | Headline only: match rate, exception count, is it verified | The Run Workspace (`/runs/:runId`) must answer in two seconds and be readable alone |
 | **3** | **Evaluator / judge** (not a user) | Assess in 5–10 minutes, skeptically | Must reach "this is verifiable" without narration |
 
 `[RECOMMENDATION]` Designing for (1) satisfies (3). Designing for (3) alone produces a
@@ -97,7 +98,7 @@ demo, not a product — and reads as one.
 ## User journeys
 
 **Cold start** — landing → login → empty Batches → upload → validation passes → run →
-overview.
+Run Workspace.
 
 **Daily operator** — login → Batches → open latest run → exceptions queue → work each
 case (evidence → AI note → next) → verify.
@@ -107,11 +108,13 @@ source, each showing row · field · message → fix CSV → re-upload.
 `[CODE]` This is where structured validation errors become visible; the UI must never
 parse the free-text `detail` string.
 
-**Investigation** — exceptions → row → evidence drawer → Payment/Bank/Settlement
-comparison with the differing field explicitly marked → "Explain" → AI note *below* the
-evidence → next exception.
+**Investigation** — exceptions → row → exception detail page
+(`/runs/:runId/exceptions/:exceptionId`) → Payment/Bank/Settlement comparison with the
+differing field explicitly marked → "Explain" → AI note *below* the evidence → next
+exception. `[CODE]` Evidence is a routed page, **not** a drawer or overlay.
 
-**Proof** — run overview → Verify → supply ground truth → **Independently Verified**, or
-a complete deterministic failure list.
+**Proof** — Run Workspace → **Verify against ground truth** (`/runs/:runId/verify`) →
+supply the ground-truth labels → **PASS**, or a complete deterministic failure list.
+The comparison is stateless: nothing is stored, and the labels are operator-supplied.
 
 **Evaluation (5 minutes)** — see [delivery/02-demo-runbook.md](../delivery/02-demo-runbook.md).

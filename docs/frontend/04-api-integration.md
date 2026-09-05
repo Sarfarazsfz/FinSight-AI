@@ -17,13 +17,16 @@ frontend renders it.
 
 | Service | Wraps | Methods | Status `[CODE]` |
 |---|---|---|---|
-| `AuthApi` | `POST /auth/login` | `login(request)` | ✅ exists |
-| `BatchApi` | `POST /batches`, `GET /batches`, `GET /batches/{id}` | `upload(request)`, `getPage(pageNumber, pageSize)`, `getById(batchId)` | ✅ exists |
-| `ReconciliationApi` | all `api/reconciliation` endpoints | `createRun`, `getRun`, `getSummary`, `getResults`, `getTransactionDetail`, `getExceptions`, `getException`, `requestAiExplanation`, `verifyGroundTruth` | 🚧 placeholder — fill per phase |
-| `FinanceAssistantApi` | `POST /finance-assistant/ask` | `ask(runId, question)` | 🚧 placeholder — fill in P12 |
+| `AuthApi` | `POST /auth/login`, `/auth/register`, `/auth/forgot-password`, `/auth/reset-password` | `login`, `register`, `forgotPassword`, `resetPassword` | ✅ exists |
+| `BatchApi` | `POST /batches`, `GET /batches`, `GET /batches/{id}` | `createBatch`, `getBatches`, `getBatch` | ✅ exists |
+| `ReconciliationApi` | all `api/reconciliation` endpoints **and** `POST /finance-assistant/ask` | `createRun`, `getRun`, `getSummary`, `verifyGroundTruth`, `getResults`, `getResultDetail`, `getExceptions`, `getException`, `generateAiExplanation`, `askFinanceAssistant` | ✅ exists |
 
-Fill each placeholder **in the phase that needs it**, not speculatively. A method with no
-caller is untested code.
+`[CODE]` There is **no separate `FinanceAssistantApi`**. `askFinanceAssistant` lives on
+`ReconciliationApi`, which builds that one URL from `environment.apiBaseUrl` rather than
+stretching its `api/reconciliation` base to cover an unrelated surface.
+
+Add a method **in the phase that needs it**, not speculatively. A method with no caller is
+untested code.
 
 ## Models
 

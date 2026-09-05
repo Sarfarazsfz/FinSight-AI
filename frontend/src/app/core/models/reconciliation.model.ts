@@ -67,6 +67,105 @@ export interface ReconciliationRunDetailsResponse {
 }
 
 /**
+ * Mirrors FinSight.Application.DTOs.Reconciliation.ReconciliationRunSummaryResponse --
+ * the body of GET /api/reconciliation/runs/{runId}/summary.
+ *
+ * This is the ONLY server-authoritative source of the five status counts.
+ * `ReconciliationSummaryBuilder` computes them from every persisted result
+ * for the run (`GetByRunIdAsync`, unpaginated), so `matched + mismatched +
+ * missing + duplicate + unresolved === totalUnits` by construction.
+ *
+ * Counting a page of `GET .../results` would describe only that page and
+ * would be wrong for any run larger than one page -- never derive these
+ * numbers client-side.
+ *
+ * `matchRate` here is the same persisted `ReconciliationRun.MatchRate` that
+ * `ReconciliationRunDetailsResponse.matchRate` exposes, so the two can
+ * never disagree.
+ */
+export interface ReconciliationRunSummaryResponse {
+  runId: string;
+  batchId: string;
+  status: string;
+  totalUnits: number;
+  matched: number;
+  mismatched: number;
+  missing: number;
+  duplicate: number;
+  unresolved: number;
+  matchRate: number;
+  exceptionCount: number;
+
+  /**
+   * Wall-clock milliseconds between the run's persisted StartedAt and
+   * CompletedAt, computed server-side. Null while a run has not completed
+   * -- an unfinished run has no duration, and the backend deliberately
+   * returns null rather than 0.
+   *
+   * A single measurement of one run on whatever machine executed it. Not a
+   * benchmark; nothing distinguishes a cold run from a warm one.
+   */
+  durationMs: number | null;
+
+  /** totalUnits / duration. Null when the duration is null or zero. */
+  recordsPerSecond: number | null;
+}
+
+/**
+ * Mirrors FinSight.Application.Evaluation.GroundTruthRow -- one expected
+ * outcome, supplied by the operator, for POST
+ * .../ground-truth-verification.
+ *
+ * These labels are generated independently of reconciliation (by
+ * FinSight.DataGenerator, from the scenario plan, before any run exists).
+ * They are nonetheless *operator-supplied* at the point of verification --
+ * the UI must never present them as something the system proved by itself.
+ */
+export interface GroundTruthRow {
+  transactionReference: string;
+  scenarioType: string;
+  expectedStatus: string;
+  expectedReasonCode: string;
+  expectedExceptionCategory: string;
+  expectedPaymentPresent: boolean;
+  expectedBankPresent: boolean;
+  expectedSettlementPresent: boolean;
+  expectedAmountRelationship: string;
+  expectedDateRelationship: string;
+}
+
+/**
+ * Mirrors FinSight.Application.Evaluation.GroundTruthComparisonResult.
+ *
+ * The backend owns the entire comparison; nothing here is recomputed
+ * client-side. `failures` is human-readable prose produced by
+ * GroundTruthComparer -- it is rendered verbatim and never parsed into
+ * pseudo-structured records.
+ *
+ * Note what this response does NOT contain: no verification id, no
+ * timestamp, no persistence. The endpoint is stateless, so the UI must not
+ * imply a stored verification.
+ */
+export interface GroundTruthComparisonResult {
+  isSuccess: boolean;
+  expectedTotalUnits: number;
+  actualTotalUnits: number;
+  expectedMatched: number;
+  actualMatched: number;
+  expectedMismatched: number;
+  actualMismatched: number;
+  expectedMissing: number;
+  actualMissing: number;
+  expectedDuplicate: number;
+  actualDuplicate: number;
+  expectedUnresolved: number;
+  actualUnresolved: number;
+  expectedMatchRate: number;
+  actualMatchRate: number;
+  failures: string[];
+}
+
+/**
  * Mirrors FinSight.Domain.Enums.MatchStatus's *names* exactly -- this is a
  * per-result classification, not a run-level state. "Pending" is NOT a
  * member here; that value belongs only to ReconciliationRunStatus above.
@@ -222,6 +321,53 @@ export interface AiExplanationResponse {
   explanation: string;
   suggestedCategory: string | null;
   generatedAtUtc: string;
+}
+
+/**
+ * Mirrors FinSight.Domain.Enums.AuditEventType exactly (the CHK_Audit_EventType
+ * constraint on the audit_logs table enumerates the same twelve values).
+ */
+export type AuditEventType =
+  | 'BatchCreated'
+  | 'BatchValidated'
+  | 'ReconciliationStarted'
+  | 'ReconciliationCompleted'
+  | 'ReconciliationFailed'
+  | 'ReconciliationDecisionRecorded'
+  | 'ExceptionCreated'
+  | 'AiQuestionAsked'
+  | 'AiToolInvoked'
+  | 'AiExplanationRequested'
+  | 'AiExplanationFailed'
+  | 'AiAssistantFailed';
+
+/**
+ * Mirrors FinSight.Application.DTOs.Reconciliation.AuditLogEntryResponse --
+ * one item of GET /api/reconciliation/runs/{runId}/audit
+ * (PagedResponse<AuditLogEntryResponse>).
+ *
+ * This is evidence ABOUT the run's execution -- timing, throughput, which
+ * events fired, in what order -- never a second source of financial truth.
+ * Match status, match rate, exception counts and classification remain
+ * whatever GET .../summary and Ground Truth Verification say they are.
+ *
+ * The backend's AuditLog entity carries no actor/user-identity column, so
+ * there is deliberately no such field here -- never render or infer one.
+ *
+ * `detail` is the raw JSON payload exactly as persisted (a jsonb column),
+ * passed through unparsed -- the same convention this API already uses for
+ * ReconciliationExceptionResponse.discrepancyDetail. Parse it defensively
+ * and never assume it matches a fixed shape: different event types carry
+ * different fields, and a parse failure must never break the viewer.
+ */
+export interface AuditLogEntryResponse {
+  id: string;
+  occurredAt: string;
+  eventType: AuditEventType;
+  runId: string | null;
+  relatedEntityType: string | null;
+  relatedEntityId: string | null;
+  detail: string;
 }
 
 /**

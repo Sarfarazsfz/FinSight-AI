@@ -2,8 +2,9 @@
 
 One deterministic end-to-end demonstration, using **only real backend capabilities**.
 
-> **Status:** target. Requires P0–P13 complete. This is not a description of a demo that
-> can run today.
+> **Status:** every route and surface below is implemented and was walked through against
+> a real 100-unit run. Routes are quoted exactly as they exist in
+> `frontend/src/app/app.routes.ts`.
 
 ---
 
@@ -15,10 +16,11 @@ One deterministic end-to-end demonstration, using **only real backend capabiliti
 | 2 | Backend running (`http://localhost:5180`) |
 | 3 | At least one AI provider key configured — the demo works without one, but the AI beats degrade to the 503 state |
 | 4 | Frontend running (`http://localhost:4200`) |
-| 5 | A demo user exists — `[CODE]` there is **no registration endpoint**; provision directly |
-| 6 | **Generate a fresh batch immediately before the demo** — never reuse a committed one |
-| 7 | Corresponding `ground-truth.csv` on hand for the verification step |
-| 8 | Rehearse **twice**; confirm consistent results |
+| 5 | A demo user exists — create one offline with `dotnet run -- create-user --email <email> --role Admin` (prompts for the password, no echo), or sign up in the browser at `/signup`. `create-user` is the only path that can create an **Admin** |
+| 6 | **Generate a fresh batch immediately before the demo** — `cd backend/FinSight.DataGenerator && dotnet run`. Never reuse a committed one; nothing is committed |
+| 7 | The generator writes the matching `ground-truth.csv` beside the three source CSVs — have that path ready for the verification step |
+| 8 | The dataset is seed-fixed (`42026`, 100 transactions, expected match rate **70.00%**), so regenerating live produces the same result — safe to do on request |
+| 9 | Rehearse **twice**; confirm consistent results |
 
 **Anti-cherry-picking rule** `[OFFICIAL WEB]` *"One cherry-picked match proves nothing."*
 Regenerate before the real run and be prepared to regenerate live if asked.
@@ -32,12 +34,12 @@ Regenerate before the real run and be prepared to regenerate live if asked.
 | 0:00–0:20 | `/` | Land | Hero + workflow | "FinSight reconciles payment, bank and settlement records into one measured result — and proves that result against an independent source." | Don't headline the AI |
 | 0:20–0:40 | `/login` | Sign in | Workspace | — | — |
 | 0:40–1:20 | `/batches/upload` | Upload the **fresh** batch | Three intake slots → validation passes → ready | "Freshly generated, labelled synthetic data with a known ground truth — nothing here is cherry-picked." | Don't say "random data" |
-| 1:20–1:50 | `/batches/:id` | Run reconciliation | Run created | "All three sources reconciled in one pass." | — |
-| 1:50–2:30 | `/runs/:id/overview` | Read the headline | Match rate + five counts + status bar | "Every unit is classified — matched, mismatched, missing, duplicate, unresolved. The counts sum to the total by construction, so the exception list is complete, not curated." | **Never quote a remembered percentage — read the screen** |
-| 2:30–3:20 | `/runs/:id/exceptions` → detail | Open one exception | Evidence: Payment / Bank / Settlement, differing field marked | "Here is the actual evidence behind the classification — the three source rows, with the field they disagree on called out." | Don't skip to the AI |
+| 1:20–1:50 | `/batches` | Click **Run reconciliation** on the new batch row | Run created, workspace opens | "All three sources reconciled in one pass." | Don't call it a job queue — it runs synchronously |
+| 1:50–2:40 | `/runs/:runId` | Read the headline, then the breakdown | Match rate · total units · **Reconciliation breakdown** (all five counts) · **Run performance** | "Every unit is classified — matched, mismatched, missing, duplicate, unresolved. The counts sum to the total by construction, so the exception list is complete, not curated." | **Never quote a remembered percentage — read the screen.** Don't call the performance figure a benchmark |
+| 2:40–3:20 | `/runs/:runId/exceptions` → detail | Open one exception | Evidence: Payment / Bank / Settlement, differing field marked | "Here is the actual evidence behind the classification — the three source rows, with the field they disagree on called out." | Don't skip to the AI |
 | 3:20–3:50 | same | Request AI explanation | Note appears **below** the evidence | "The explanation is generated from that evidence. It's advisory — it never decided the classification, and it can't." | Don't imply AI computed anything |
-| 3:50–4:20 | `/runs/:id/assistant` | Ask one question | Answer + tool-trail chips | "It investigated using our own read-only tools — you can see exactly which ones ran." | Don't call it a chatbot |
-| 4:20–4:50 | `/runs/:id/verify` | Supply ground truth | **Independently Verified** (or the full failure list) | "This compares the run against labels generated before reconciliation ever ran — a measurement, not a self-report." | Don't claim a number the screen doesn't show |
+| 3:50–4:20 | `/runs/:runId` — Assistant rail | Ask one question | Answer + tool-trail chips | "It investigated using our own read-only tools — you can see exactly which ones ran." | Don't call it a chatbot. **It is not a separate route** — it is the right-hand rail of the run workspace (a drawer below 1024px) |
+| 4:20–4:50 | `/runs/:runId/verify` | Choose `ground-truth.csv`, click **Verify against ground truth** | **PASS · Ground truth verified** (or FAIL with the full failure list) | "This compares the run against labels generated before reconciliation ever ran. The labels are supplied by me — the check proves the engine agrees with them." | Don't say "self-verified". Don't claim the result was saved — the comparison is stateless |
 | 4:50–5:00 | — | Close | — | "Find what doesn't reconcile. Understand why. Prove the result." | Don't end on a feature list |
 
 ---
@@ -61,9 +63,12 @@ path deliberately.**
 
 ## If verification fails live
 
-Show it. A visible "3 of 100 discrepancies found, listed below" is more credible than
-silence and is exactly what the honesty standard asks for. Then explain what the
-comparator checked. Do not retry until it passes.
+Show it. The page renders **FAIL**, the expected-vs-actual table with each disagreeing row
+marked, and every failure string the comparator produced, verbatim. That is more credible
+than silence and is exactly what the honesty standard asks for. Then explain what the
+comparator checked — per-transaction status and reason code, exception category, the five
+counts, the match rate, and duplicate references on both sides. Do not retry until it
+passes.
 
 ---
 
@@ -115,6 +120,32 @@ own correctness bug is more credible than one that reports no bugs.
 
 ---
 
+## Synthetic Data Lab (optional demo extension)
+
+The **Synthetic Data Lab** at `/data-generator` lets a presenter generate a fresh, seed-reproducible
+dataset entirely in the browser — without touching the CLI tool.
+
+| Step | Action |
+|---|---|
+| 1 | Navigate to **Synthetic Data** in the sidebar → `/data-generator` |
+| 2 | Choose mode, size, intensity; leave seed blank for a random one |
+| 3 | Click **Generate dataset** |
+| 4 | Note the seed shown — you can re-enter it to reproduce the same files |
+| 5 | Download `payments.csv`, `bank.csv`, `settlements.csv` via the buttons |
+| 6 | Download `ground-truth.csv` (generated from scenario labels, **not** from reconciliation output) |
+| 7 | Upload the three source CSVs at **Batches → Upload Batch** → run reconciliation → verify against the downloaded ground truth |
+
+**Key messages:**
+- "The ground truth was written before reconciliation ran — it cannot have been adjusted to match the engine."
+- "Same seed, same config → identical files. You can reproduce any result I show you."
+- Datasets expire after 1 hour — regenerate with the same seed to re-download.
+
+**Anti-rules for this section:**
+- Do NOT auto-reconcile immediately after clicking Generate — the button is absent by design.
+- Do NOT imply the ground truth was derived from the run results.
+
+---
+
 ## Video plan — 5 minutes `[OFFICIAL WEB]`
 
 | Segment | Time | Content |
@@ -131,10 +162,16 @@ screen.
 
 ---
 
-## Throughput — decide before the demo
+## Throughput — what to say
 
-`[CODE]` Not instrumented. `[OFFICIAL WEB]` Named in the bar. Either measure it (a small
-approved backend change) or state plainly that it was not measured. **Never estimate.**
+`[CODE]` Measured and on screen. The **Run performance** panel on `/runs/:runId` shows
+units processed, duration and units/sec, computed server-side from that run's persisted
+`StartedAt`/`CompletedAt` (`durationMs` / `recordsPerSecond` on the summary response).
+
+Say: *"That's a single wall-clock measurement of this run on this machine."*
+
+**Never** call it a benchmark, quote a cold/warm comparison, or imply a production figure —
+no benchmark harness exists. Read the number off the screen; never from memory.
 See [quality/03-performance.md](../quality/03-performance.md).
 
 ---
@@ -147,3 +184,10 @@ See [quality/03-performance.md](../quality/03-performance.md).
 3. Never hide a failure that occurs live.
 4. Never present AI output as having decided anything.
 5. Never demo a stale committed batch as if freshly generated.
+6. Never call the run-performance figure a benchmark, and never claim cold/warm evidence.
+7. Never say the verification was "saved" or "self-verified" — it is stateless, and the
+   labels are operator-supplied.
+8. Never claim enterprise multi-tenancy or an organization/team model — neither exists.
+   A batch (and every run, result, and exception scoped to it) is owned by the user who
+   created it, and cross-user access returns 404; that is a single-owner boundary, not
+   full multi-tenancy.

@@ -210,10 +210,15 @@ describe('LandingPage', () => {
     expect(preview.textContent?.toLowerCase()).toContain('illustrative demo data');
   });
 
-  it('renders a visible "Ground truth verified" signal on the example run', () => {
+  it('marks the example run\'s ground-truth signal as an example, not a real verification', () => {
     configure();
     const preview = el().querySelector('[data-testid="landing-example-run"]')!;
-    expect(preview.textContent).toContain('Ground truth verified');
+
+    // The signal is still shown -- it is what a passing run looks like --
+    // but it must read as illustrative. A bare "Ground truth verified" on
+    // a mock run claims a verification that never ran.
+    expect(preview.textContent).toContain('Ground truth PASS (example)');
+    expect(preview.textContent?.toLowerCase()).toContain('illustrative demo data');
   });
 
   it('renders the example exceptions and an AI explanation line', () => {
