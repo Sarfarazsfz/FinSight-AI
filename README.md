@@ -240,3 +240,97 @@ Accounts can be created two ways. `dotnet run -- create-user` provisions offline
 Password reset is single-use and time-limited, and only a hash of each reset token is stored. `/forgot-password` returns the same response whether or not an account exists, to avoid account enumeration. **No email provider is configured** — in Development reset links are written to a local git-ignored file sink; see [docs/setup](docs/setup/01-local-development.md#testing-password-reset-locally).
 
 No secret, key, connection string, or default credential is committed to this repository.
+
+## Deployment
+
+The production architecture is:
+
+```
+Vercel (Angular SPA — static)
+    ↓  direct HTTPS API calls (CORS allowed on Railway)
+Railway (ASP.NET Core API — Docker)
+    ↓  Npgsql + SSL
+Supabase (PostgreSQL)
+```
+
+### Railway (backend)
+
+| Setting | Value |
+|---|---|
+| Root directory | `backend` |
+| Dockerfile | `backend/Dockerfile` |
+| Exposed port | `8080` |
+| Instances | **1** — required (rate limiter and synthetic-data session store are in-process singletons) |
+
+All secrets are supplied as Railway environment variables — nothing is baked into the image.
+
+**Required environment variables** (names only — set values in Railway dashboard):
+
+```
+ConnectionStrings__FinSightDb          # Supabase connection string
+Jwt__Issuer
+Jwt__Audience
+Jwt__SecretKey
+Jwt__ExpirationMinutes
+Cors__AllowedOrigins__0                # Vercel deployment URL — set after Vercel deploy
+ASPNETCORE_ENVIRONMENT=Production
+ASPNETCORE_URLS=http://0.0.0.0:8080
+Auth__PasswordReset__FrontendBaseUrl   # Vercel deployment URL
+
+# At least one AI provider key (all three are optional; missing key = provider skipped):
+AI__Providers__Gemini__ApiKey
+AI__Providers__Gemini__Enabled=true
+AI__Providers__Gemini__Model           # default: gemini-2.5-flash
+AI__Providers__Nvidia__ApiKey
+AI__Providers__Nvidia__Enabled=true
+AI__Providers__Nvidia__Model           # default: openai/gpt-oss-120b
+AI__Providers__Nvidia__BaseUrl         # default: https://integrate.api.nvidia.com/v1
+
+# Provider chain (comma-separated, or Railway array syntax __0 __1 ...):
+AI__ExceptionExplanation__ProviderOrder=Gemini,NVIDIA
+AI__FinanceAssistant__ProviderOrder=Gemini,NVIDIA
+```
+
+**Migrations** — not applied automatically. Run once after the Supabase database is created:
+
+```bash
+cd backend/FinSight.Api
+dotnet ef database update --project ../FinSight.Infrastructure
+```
+
+The connection string must be available as `ConnectionStrings__FinSightDb` when this command runs.
+
+**First user** — a fresh database has no accounts. Either register through `/signup` in the browser, or provision an Admin account:
+
+```bash
+# with ConnectionStrings__FinSightDb set in environment
+dotnet run -- create-user --email admin@example.com --role Admin
+```
+
+**Password reset in production** — `forgot-password` returns 500 until a real email provider is wired up. The `UnconfiguredPasswordResetEmailSender` is registered for every non-Development environment by design; see `DependencyInjection.cs`. Login and signup work normally.
+
+**Health check** — no dedicated HTTP health endpoint exists. Railway uses TCP/port verification.
+
+### Vercel (frontend)
+
+| Setting | Value |
+|---|---|
+| Framework | Other (static) |
+| Root directory | `frontend` |
+| Build command | `npm ci && npm run build` |
+| Output directory | `dist/frontend/browser` |
+
+`frontend/vercel.json` is committed in the repository and provides the SPA fallback rewrite. No `/api` proxy rewrite is needed — `environment.ts` points directly to the Railway origin, so all API calls are cross-origin requests from the browser to Railway, handled by CORS.
+
+After Vercel deployment, update the Railway `Cors__AllowedOrigins__0` and `Auth__PasswordReset__FrontendBaseUrl` variables to the confirmed Vercel URL and redeploy Railway.
+
+### Deployment order
+
+1. Create Supabase project — collect connection string
+2. Create Railway service — set environment variables (use placeholder for CORS / FrontendBaseUrl)
+3. Run EF migrations against Supabase (`dotnet ef database update`)
+4. Deploy Railway — verify API starts and responds
+5. Create first user (signup or provisioning command)
+6. Create Vercel project — `frontend/vercel.json` is committed; set Railway API URL in Railway `Cors__AllowedOrigins__0` after Vercel URL is known — deploy
+7. Update Railway `Cors__AllowedOrigins__0` and `Auth__PasswordReset__FrontendBaseUrl` to confirmed Vercel URL
+8. End-to-end verification: login → upload → reconcile → AI explain → ground-truth verify

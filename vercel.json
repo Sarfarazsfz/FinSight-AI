@@ -1,0 +1,9 @@
+{
+  "_comment": "This file is NOT used by Vercel. The Vercel Root Directory is set to 'frontend', so Vercel reads frontend/vercel.json instead. This file is kept only as a placeholder.",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
