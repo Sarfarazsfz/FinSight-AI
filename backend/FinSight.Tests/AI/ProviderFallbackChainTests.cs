@@ -281,6 +281,137 @@ public sealed class ProviderFallbackChainTests
         Assert.That(capturedExcluded, Is.EqualTo(new[] { "B" }));
     }
 
+    // ------------------------------------------------------- P-1I-FIX-2:
+    // per-provider bounded timeout. These use a small injected timeout
+    // (milliseconds, via the constructor's optional override) and a fake
+    // provider built on Task.Delay(Timeout.Infinite, cancellationToken)
+    // -- a call that never completes on its own, only via cancellation --
+    // so the timeout behavior itself is proven deterministically and
+    // fast, never by actually waiting out the real 30-second production
+    // default.
+
+    [Test]
+    public async Task ProviderNeverResponds_TimesOutAndFallsThroughToTheNextProvider()
+    {
+        var calls = new List<string>();
+
+        var chain =
+            new ProviderFallbackChain<string, int, int>(
+                new[] { ("A", "A"), ("B", "B") },
+                invoke: async (name, _, cancellationToken) =>
+                {
+                    calls.Add(name);
+
+                    if (name == "A")
+                    {
+                        // Never completes on its own -- only the chain's
+                        // own bounded timeout (via the linked token) ever
+                        // ends this call, exactly like a real provider
+                        // that never responds.
+                        await Task.Delay(Timeout.Infinite, cancellationToken);
+                        return -1;
+                    }
+
+                    return 42;
+                },
+                singleFailureExceptionFactory: (name, ex, _) => ex,
+                allFailedExceptionFactory: (failures, _) => new AggregateException(),
+                perProviderCallTimeout: TimeSpan.FromMilliseconds(30));
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        var result = await chain.ExecuteAsync(0);
+        stopwatch.Stop();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.EqualTo(42));
+            Assert.That(calls, Is.EqualTo(new[] { "A", "B" }));
+
+            // The whole point of the fix: bounded, not merely "eventually
+            // finishes". Generous margin over the 30ms configured timeout
+            // so this never flakes under CI load, while still being
+            // orders of magnitude short of a real unbounded hang.
+            Assert.That(stopwatch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
+        });
+    }
+
+    [Test]
+    public void EveryProviderTimesOut_ReportsABoundedFailure_RecordedAsTimeoutException()
+    {
+        IReadOnlyList<(string Name, Exception Error)>? capturedFailures = null;
+
+        var chain =
+            new ProviderFallbackChain<string, int, int>(
+                new[] { ("A", "A"), ("B", "B") },
+                invoke: async (_, _, cancellationToken) =>
+                {
+                    await Task.Delay(Timeout.Infinite, cancellationToken);
+                    return -1;
+                },
+                singleFailureExceptionFactory: (name, ex, _) =>
+                    new InvalidOperationException($"single:{name}", ex),
+                allFailedExceptionFactory: (failures, _) =>
+                {
+                    capturedFailures = failures;
+                    return new InvalidOperationException("all timed out");
+                },
+                perProviderCallTimeout: TimeSpan.FromMilliseconds(20));
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        Assert.ThrowsAsync<InvalidOperationException>(
+            async () => await chain.ExecuteAsync(0));
+
+        stopwatch.Stop();
+
+        Assert.Multiple(() =>
+        {
+            // Never hangs -- both candidates time out and the chain
+            // still reports a normal bounded failure well within budget.
+            Assert.That(stopwatch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(2)));
+
+            Assert.That(capturedFailures, Is.Not.Null);
+            Assert.That(
+                capturedFailures!.Select(f => f.Name),
+                Is.EqualTo(new[] { "A", "B" }));
+
+            Assert.That(
+                capturedFailures!.All(f => f.Error is TimeoutException),
+                Is.True,
+                "a timed-out provider's recorded failure must be a TimeoutException");
+        });
+    }
+
+    [Test]
+    public void GenuineCallerCancellation_StillPropagatesImmediately_EvenWithATimeoutConfigured()
+    {
+        // Proves the new per-call timeout machinery never swallows or
+        // delays a genuine caller-driven cancellation (e.g. the real HTTP
+        // request being aborted) -- it must still propagate immediately
+        // and never be treated as a per-provider failure, exactly as
+        // before this fix.
+        using var cts = new CancellationTokenSource();
+
+        var chain =
+            new ProviderFallbackChain<string, int, int>(
+                new[] { ("A", "A"), ("B", "B") },
+                invoke: async (_, _, cancellationToken) =>
+                {
+                    cts.Cancel();
+                    await Task.Delay(Timeout.Infinite, cancellationToken);
+                    return -1;
+                },
+                singleFailureExceptionFactory: (name, ex, _) => ex,
+                allFailedExceptionFactory: (failures, _) => new AggregateException(),
+                // Deliberately much larger than the cancellation above,
+                // to prove this is the CALLER's cancellation winning, not
+                // a coincidentally-short timeout.
+                perProviderCallTimeout: TimeSpan.FromSeconds(30));
+
+        Assert.CatchAsync<OperationCanceledException>(
+            async () => await chain.ExecuteAsync(0, cts.Token));
+    }
+
     private static ProviderFallbackChain<string, int, int> CreateChain(
         IEnumerable<string> order,
         Func<string, int, CancellationToken, Task<int>> invoke)

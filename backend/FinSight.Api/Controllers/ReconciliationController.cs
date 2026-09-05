@@ -1,3 +1,4 @@
+using FinSight.Api.Authentication;
 using FinSight.Application.Abstractions.Evaluation;
 using FinSight.Application.Abstractions.Persistence;
 using FinSight.Application.Abstractions.Reconciliation;
@@ -48,6 +49,10 @@ public class ReconciliationController : ControllerBase
     private readonly IGroundTruthComparisonService
         _groundTruthComparisonService;
 
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IBatchAccessService _batchAccessService;
+    private readonly IAuditLogReader _auditLogReader;
+
     public ReconciliationController(
         IReconciliationService reconciliationService,
         IReconciliationRunRepository runRepository,
@@ -59,7 +64,10 @@ public class ReconciliationController : ControllerBase
         ISettlementRecordRepository settlementRecordRepository,
         IAiExplanationService aiExplanationService,
         IReconciliationSummaryBuilder summaryBuilder,
-        IGroundTruthComparisonService groundTruthComparisonService)
+        IGroundTruthComparisonService groundTruthComparisonService,
+        ICurrentUserService currentUserService,
+        IBatchAccessService batchAccessService,
+        IAuditLogReader auditLogReader)
     {
         _reconciliationService =
             reconciliationService;
@@ -93,6 +101,15 @@ public class ReconciliationController : ControllerBase
 
         _groundTruthComparisonService =
             groundTruthComparisonService;
+
+        _currentUserService =
+            currentUserService;
+
+        _batchAccessService =
+            batchAccessService;
+
+        _auditLogReader =
+            auditLogReader;
     }
 
     [HttpPost("runs")]
@@ -112,6 +129,33 @@ public class ReconciliationController : ControllerBase
                 detail: "A valid batchId is required.",
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Bad Request");
+        }
+
+        if (!_currentUserService.TryGetCurrentUserId(out var currentUserId))
+        {
+            return Problem(
+                detail: "Authentication is required.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+
+        // Ownership is checked here, before the reconciliation engine
+        // ever runs -- not inside it. A batch that is not the caller's
+        // (or does not exist) is reported with the exact same message
+        // ReconciliationOrchestrator itself uses for "does not exist",
+        // so the two cases stay indistinguishable.
+        var ownedBatch =
+            await _batchAccessService.GetOwnedBatchAsync(
+                request.BatchId,
+                currentUserId,
+                cancellationToken);
+
+        if (ownedBatch is null)
+        {
+            return Problem(
+                detail: $"Batch '{request.BatchId}' was not found.",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Resource Not Found");
         }
 
         try
@@ -143,9 +187,18 @@ public class ReconciliationController : ControllerBase
         Guid runId,
         CancellationToken cancellationToken)
     {
+        if (!_currentUserService.TryGetCurrentUserId(out var currentUserId))
+        {
+            return Problem(
+                detail: "Authentication is required.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+
         var run =
-            await _runRepository.GetByIdAsync(
+            await _batchAccessService.GetOwnedRunAsync(
                 runId,
+                currentUserId,
                 cancellationToken);
 
         if (run is null)
@@ -183,9 +236,33 @@ public class ReconciliationController : ControllerBase
             Guid runId,
             CancellationToken cancellationToken)
     {
-        // Single authoritative calculation, shared with the Finance
-        // Assistant's getReconciliationSummary tool -- see
-        // IReconciliationSummaryBuilder.
+        if (!_currentUserService.TryGetCurrentUserId(out var currentUserId))
+        {
+            return Problem(
+                detail: "Authentication is required.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+
+        // IReconciliationSummaryBuilder is shared with the Finance
+        // Assistant's internal getReconciliationSummary tool, which has
+        // no per-caller identity of its own to check against -- ownership
+        // is therefore verified here, at the HTTP boundary, rather than
+        // inside the shared builder.
+        var ownedRun =
+            await _batchAccessService.GetOwnedRunAsync(
+                runId,
+                currentUserId,
+                cancellationToken);
+
+        if (ownedRun is null)
+        {
+            return Problem(
+                detail: $"Reconciliation run '{runId}' was not found.",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Resource Not Found");
+        }
+
         var response =
             await _summaryBuilder.BuildAsync(
                 runId,
@@ -223,9 +300,23 @@ public class ReconciliationController : ControllerBase
                 title: "Bad Request");
         }
 
+        if (!_currentUserService.TryGetCurrentUserId(out var currentUserId))
+        {
+            return Problem(
+                detail: "Authentication is required.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+
+        // Ownership is established before the comparison runs at all --
+        // an authenticated user must not be able to verify a run they do
+        // not own, regardless of which ground-truth labels they supply.
+        // Nothing about the comparison itself (expected/actual counts,
+        // match-rate check, failure generation) changes here.
         var run =
-            await _runRepository.GetByIdAsync(
+            await _batchAccessService.GetOwnedRunAsync(
                 runId,
+                currentUserId,
                 cancellationToken);
 
         if (run is null)
@@ -277,9 +368,18 @@ public class ReconciliationController : ControllerBase
                 title: "Bad Request");
         }
 
+        if (!_currentUserService.TryGetCurrentUserId(out var currentUserId))
+        {
+            return Problem(
+                detail: "Authentication is required.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+
         var run =
-            await _runRepository.GetByIdAsync(
+            await _batchAccessService.GetOwnedRunAsync(
                 runId,
+                currentUserId,
                 cancellationToken);
 
         if (run is null)
@@ -387,9 +487,18 @@ public class ReconciliationController : ControllerBase
             Guid resultId,
             CancellationToken cancellationToken)
     {
+        if (!_currentUserService.TryGetCurrentUserId(out var currentUserId))
+        {
+            return Problem(
+                detail: "Authentication is required.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+
         var run =
-            await _runRepository.GetByIdAsync(
+            await _batchAccessService.GetOwnedRunAsync(
                 runId,
+                currentUserId,
                 cancellationToken);
 
         if (run is null)
@@ -592,9 +701,18 @@ public class ReconciliationController : ControllerBase
                 title: "Bad Request");
         }
 
+        if (!_currentUserService.TryGetCurrentUserId(out var currentUserId))
+        {
+            return Problem(
+                detail: "Authentication is required.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+
         var run =
-            await _runRepository.GetByIdAsync(
+            await _batchAccessService.GetOwnedRunAsync(
                 runId,
+                currentUserId,
                 cancellationToken);
 
         if (run is null)
@@ -722,6 +840,142 @@ public class ReconciliationController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>
+    /// Read-only audit evidence for a run, from the existing audit_logs
+    /// table -- the same store BatchIngestionService,
+    /// ReconciliationOrchestrator, AiExplanationService and
+    /// FinanceAssistantService already write to. There is no
+    /// corresponding create/update/delete action anywhere in this API:
+    /// this endpoint cannot produce, alter, or remove a single audit row.
+    ///
+    /// This is evidence ABOUT the run's execution -- timing, throughput,
+    /// which events fired, in what order -- never a second source of
+    /// financial truth. Match status, match rate, exception counts and
+    /// classification remain whatever the deterministic reconciliation
+    /// engine and Ground Truth Verification say they are.
+    /// </summary>
+    [HttpGet("runs/{runId:guid}/audit")]
+    [ProducesResponseType(
+        typeof(PagedResponse<AuditLogEntryResponse>),
+        StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PagedResponse<AuditLogEntryResponse>>>
+        GetAuditLog(
+            Guid runId,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 50,
+            CancellationToken cancellationToken = default)
+    {
+        const int maxPageSize = 100;
+
+        if (pageNumber < 1)
+        {
+            return Problem(
+                detail: "pageNumber must be greater than or equal to 1.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request");
+        }
+
+        if (pageSize < 1 || pageSize > maxPageSize)
+        {
+            return Problem(
+                detail: $"pageSize must be between 1 and {maxPageSize}.",
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Bad Request");
+        }
+
+        if (!_currentUserService.TryGetCurrentUserId(out var currentUserId))
+        {
+            return Problem(
+                detail: "Authentication is required.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+
+        // Ownership resolved and enforced before a single audit row is
+        // read -- identical mechanism and identical 404 message to every
+        // other run-scoped endpoint, so a caller cannot tell "this run
+        // does not exist" apart from "this run exists, but isn't yours."
+        var run =
+            await _batchAccessService.GetOwnedRunAsync(
+                runId,
+                currentUserId,
+                cancellationToken);
+
+        if (run is null)
+        {
+            return Problem(
+                detail: $"Reconciliation run '{runId}' was not found.",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Resource Not Found");
+        }
+
+        var pagedAuditLogs =
+            await _auditLogReader.GetPageByRunIdAsync(
+                runId,
+                pageNumber,
+                pageSize,
+                cancellationToken);
+
+        var items =
+            pagedAuditLogs.Items
+                .Select(
+                    auditLog =>
+                        new AuditLogEntryResponse
+                        {
+                            Id =
+                                auditLog.Id,
+
+                            OccurredAt =
+                                auditLog.OccurredAt,
+
+                            EventType =
+                                auditLog.EventType.ToString(),
+
+                            RunId =
+                                auditLog.RunId,
+
+                            RelatedEntityType =
+                                auditLog.RelatedEntityType,
+
+                            RelatedEntityId =
+                                auditLog.RelatedEntityId,
+
+                            Detail =
+                                auditLog.DetailPayload
+                        })
+                .ToList();
+
+        var totalPages =
+            pagedAuditLogs.TotalCount == 0
+                ? 0
+                : (int)Math.Ceiling(
+                    pagedAuditLogs.TotalCount /
+                    (double)pageSize);
+
+        var response =
+            new PagedResponse<AuditLogEntryResponse>
+            {
+                Items =
+                    items,
+
+                PageNumber =
+                    pageNumber,
+
+                PageSize =
+                    pageSize,
+
+                TotalCount =
+                    pagedAuditLogs.TotalCount,
+
+                TotalPages =
+                    totalPages
+            };
+
+        return Ok(response);
+    }
+
     [HttpGet("exceptions/{exceptionId:guid}")]
     [ProducesResponseType(
         typeof(ReconciliationExceptionResponse),
@@ -732,12 +986,42 @@ public class ReconciliationController : ControllerBase
             Guid exceptionId,
             CancellationToken cancellationToken)
     {
+        if (!_currentUserService.TryGetCurrentUserId(out var currentUserId))
+        {
+            return Problem(
+                detail: "Authentication is required.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+
         var exception =
             await _exceptionRepository.GetByIdAsync(
                 exceptionId,
                 cancellationToken);
 
         if (exception is null)
+        {
+            return Problem(
+                detail:
+                    $"Reconciliation exception '{exceptionId}' was not found.",
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Resource Not Found");
+        }
+
+        // This route deliberately takes no runId, so ownership cannot be
+        // checked before the lookup the way every other endpoint does it
+        // -- the exception itself must be fetched first to learn which
+        // run it belongs to. The 404 message is identical to the
+        // not-found case above: a caller must not be able to tell "this
+        // exception does not exist" apart from "this exception exists,
+        // but not for you."
+        var ownedRun =
+            await _batchAccessService.GetOwnedRunAsync(
+                exception.RunId,
+                currentUserId,
+                cancellationToken);
+
+        if (ownedRun is null)
         {
             return Problem(
                 detail:
@@ -841,6 +1125,43 @@ public class ReconciliationController : ControllerBase
                 detail: "A valid exceptionId is required.",
                 statusCode: StatusCodes.Status400BadRequest,
                 title: "Bad Request");
+        }
+
+        if (!_currentUserService.TryGetCurrentUserId(out var currentUserId))
+        {
+            return Problem(
+                detail: "Authentication is required.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+
+        // AI must stay completely outside the truth path, which includes
+        // never being invoked on another user's data. The exception is
+        // resolved to its run and ownership is checked BEFORE
+        // IAiExplanationService is called at all -- if the exception
+        // genuinely does not exist, that is left to the service's own
+        // KeyNotFoundException below, unchanged.
+        var exception =
+            await _exceptionRepository.GetByIdAsync(
+                exceptionId,
+                cancellationToken);
+
+        if (exception is not null)
+        {
+            var ownedRun =
+                await _batchAccessService.GetOwnedRunAsync(
+                    exception.RunId,
+                    currentUserId,
+                    cancellationToken);
+
+            if (ownedRun is null)
+            {
+                return Problem(
+                    detail:
+                        $"Reconciliation exception '{exceptionId}' was not found.",
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Resource Not Found");
+            }
         }
 
         try

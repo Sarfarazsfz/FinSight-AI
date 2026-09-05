@@ -203,4 +203,143 @@ public sealed class ReconciliationPaginationIntegrationTests
             page.Items[1].Id,
             Is.EqualTo(allExceptions[3].Id));
     }
+
+    [Test]
+    public async Task AuditLogReader_GetPageByRunId_ReturnsNewestFirstWithStableIdTieBreakAndTotalCount()
+    {
+        await _fixture.ResetDatabaseAsync();
+
+        await using var scope =
+            _fixture.CreateScope();
+
+        var dbContext =
+            scope.ServiceProvider
+                .GetRequiredService<FinSight.Infrastructure.Persistence.AppDbContext>();
+
+        var batch =
+            new Batch(
+                "Pagination Test Batch - Audit",
+                0,
+                0,
+                0,
+                "Valid",
+                "pagination-test");
+
+        dbContext.Batches.Add(batch);
+
+        var run =
+            new ReconciliationRun(batch.Id);
+
+        dbContext.ReconciliationRuns.Add(run);
+
+        // Real AuditLog instances, constructed the same way the
+        // orchestrator constructs them (OccurredAt = DateTime.UtcNow
+        // internally, not settable) -- several created back-to-back can
+        // legitimately land in the same instant, which is exactly why
+        // the query's tie-break on Id matters. The expected order below
+        // is computed with the identical (OccurredAt desc, Id desc)
+        // definition the repository uses, so this test is correct
+        // regardless of whether real elapsed time separates the
+        // timestamps.
+        var auditLogs = new List<AuditLog>();
+
+        for (var i = 1; i <= 5; i++)
+        {
+            var auditLog =
+                new AuditLog(
+                    AuditEventType.ReconciliationDecisionRecorded,
+                    $$"""{"run_id":"{{run.Id}}","sequence":{{i}}}""",
+                    run.Id);
+
+            auditLogs.Add(auditLog);
+            dbContext.AuditLogs.Add(auditLog);
+        }
+
+        await dbContext.SaveChangesAsync();
+
+        var reader =
+            scope.ServiceProvider
+                .GetRequiredService<IAuditLogReader>();
+
+        var page =
+            await reader.GetPageByRunIdAsync(
+                run.Id,
+                pageNumber: 1,
+                pageSize: 3);
+
+        var expectedOrder =
+            auditLogs
+                .OrderByDescending(x => x.OccurredAt)
+                .ThenByDescending(x => x.Id)
+                .Take(3)
+                .Select(x => x.Id)
+                .ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                page.TotalCount,
+                Is.EqualTo(5));
+
+            Assert.That(
+                page.Items,
+                Has.Count.EqualTo(3));
+
+            Assert.That(
+                page.Items.Select(x => x.Id).ToList(),
+                Is.EqualTo(expectedOrder));
+        });
+    }
+
+    [Test]
+    public async Task AuditLogReader_GetPageByRunId_ForARunWithNoAuditEvents_ReturnsAnEmptyPage()
+    {
+        await _fixture.ResetDatabaseAsync();
+
+        await using var scope =
+            _fixture.CreateScope();
+
+        var dbContext =
+            scope.ServiceProvider
+                .GetRequiredService<FinSight.Infrastructure.Persistence.AppDbContext>();
+
+        var batch =
+            new Batch(
+                "Pagination Test Batch - Audit Empty",
+                0,
+                0,
+                0,
+                "Valid",
+                "pagination-test");
+
+        dbContext.Batches.Add(batch);
+
+        var run =
+            new ReconciliationRun(batch.Id);
+
+        dbContext.ReconciliationRuns.Add(run);
+
+        await dbContext.SaveChangesAsync();
+
+        var reader =
+            scope.ServiceProvider
+                .GetRequiredService<IAuditLogReader>();
+
+        var page =
+            await reader.GetPageByRunIdAsync(
+                run.Id,
+                pageNumber: 1,
+                pageSize: 50);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                page.TotalCount,
+                Is.Zero);
+
+            Assert.That(
+                page.Items,
+                Is.Empty);
+        });
+    }
 }

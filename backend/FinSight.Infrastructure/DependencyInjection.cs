@@ -9,6 +9,8 @@ using FinSight.Infrastructure.AI;
 using FinSight.Infrastructure.AI.Gemini;
 using FinSight.Infrastructure.AI.OpenAI;
 using FinSight.Infrastructure.Authentication;
+using FinSight.Infrastructure.Authorization;
+using FinSight.Infrastructure.Email;
 using FinSight.Infrastructure.FileParsing;
 using FinSight.Infrastructure.Ingestion;
 using FinSight.Infrastructure.Persistence;
@@ -438,6 +440,70 @@ public static class DependencyInjection
             IAuthService,
             AuthService>();
 
+        // Account lifecycle (signup / forgot / reset). Deliberately a
+        // separate service from IAuthService so the login path keeps one
+        // implementation and one set of tests.
+        var passwordResetOptions =
+            configuration
+                .GetSection("Auth:PasswordReset")
+                .Get<PasswordResetOptions>()
+            ?? new PasswordResetOptions();
+
+        services.AddSingleton(passwordResetOptions);
+
+        services.AddScoped<
+            IUserAccountService,
+            UserAccountService>();
+
+        // Forgot-password abuse protection. Singleton is required, not
+        // incidental: its whole job is to remember counts across
+        // requests, which a scoped or transient lifetime would reset on
+        // every call. See InMemoryPasswordResetRateLimiter's own remarks
+        // for why this is in-process rather than a shared/distributed
+        // store.
+        var passwordResetRateLimitOptions =
+            configuration
+                .GetSection("Auth:PasswordResetRateLimit")
+                .Get<PasswordResetRateLimitOptions>()
+            ?? new PasswordResetRateLimitOptions();
+
+        services.AddSingleton(passwordResetRateLimitOptions);
+
+        services.AddSingleton<
+            IPasswordResetRateLimiter,
+            InMemoryPasswordResetRateLimiter>();
+
+        // Reset delivery. No email provider is configured in this project,
+        // so Development gets an explicit local file sink and every other
+        // environment gets a sender that fails loudly rather than silently
+        // dropping reset mail. Replace this with a real provider before
+        // deploying.
+        //
+        // The environment is read from configuration rather than injected
+        // as IHostEnvironment so that AddInfrastructure stays usable from a
+        // plain ServiceCollection (the create-user command and the AI DI
+        // tests both build one without a host).
+        var environmentName =
+            configuration["ASPNETCORE_ENVIRONMENT"]
+            ?? configuration["DOTNET_ENVIRONMENT"]
+            ?? "Production";
+
+        if (string.Equals(
+                environmentName,
+                "Development",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddScoped<
+                IPasswordResetEmailSender,
+                FilePasswordResetEmailSender>();
+        }
+        else
+        {
+            services.AddScoped<
+                IPasswordResetEmailSender,
+                UnconfiguredPasswordResetEmailSender>();
+        }
+
         // -----------------------------------------------------------------
         // Persistence
         // -----------------------------------------------------------------
@@ -451,6 +517,18 @@ public static class DependencyInjection
         services.AddScoped<
             IUserRepository,
             UserRepository>();
+
+        // Ownership boundary. No HTTP dependency (unlike
+        // ICurrentUserService, which the API project registers), so it is
+        // safe to resolve from a bare ServiceCollection.
+        services.AddScoped<
+            IBatchAccessService,
+            BatchAccessService>();
+
+        // Register password reset token repository.
+        services.AddScoped<
+            IPasswordResetTokenRepository,
+            PasswordResetTokenRepository>();
 
         // Register raw Payment repository.
         services.AddScoped<
@@ -487,15 +565,35 @@ public static class DependencyInjection
             IReconciliationExceptionRepository,
             ReconciliationExceptionRepository>();
 
-        // Register audit log writer.
+        // Register audit log writer and reader. Same repository, same
+        // table -- two narrow interfaces so the read-only evidence
+        // endpoint's dependency has no write methods in its shape.
         services.AddScoped<
             IAuditLogWriter,
+            AuditLogRepository>();
+
+        services.AddScoped<
+            IAuditLogReader,
             AuditLogRepository>();
 
         // Register Unit of Work.
         services.AddScoped<
             IUnitOfWork,
             UnitOfWork>();
+
+        // -----------------------------------------------------------------
+        // Synthetic data generation (Test-Data Lab)
+        // -----------------------------------------------------------------
+
+        // Stateless, pure generator — safe as a singleton.
+        services.AddSingleton<
+            FinSight.Application.TestData.ISyntheticDataGenerator,
+            FinSight.Application.TestData.SyntheticDataGenerator>();
+
+        // Short-lived in-memory session store — holds request parameters
+        // for up to 1 hour so download endpoints can regenerate CSVs.
+        services.AddSingleton<
+            FinSight.Infrastructure.TestData.TestDataSessionStore>();
 
         return services;
     }

@@ -97,7 +97,8 @@ public sealed class BatchIngestionService : IBatchIngestionService
             bankRows.Count,
             settlementRows.Count,
             validationStatus: "Valid",
-            createdBy: request.CreatedBy);
+            createdBy: request.CreatedBy,
+            createdByUserId: request.CreatedByUserId);
 
         await _batchRepository.AddAsync(
             batch,

@@ -159,6 +159,10 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("created_by");
 
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by_user_id");
+
                     b.Property<int>("PaymentRecordCount")
                         .HasColumnType("integer")
                         .HasColumnName("payment_record_count");
@@ -178,6 +182,9 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                         .HasColumnName("validation_status");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId")
+                        .HasDatabaseName("IX_batches_created_by_user_id");
 
                     b.ToTable("batches", null, t =>
                         {
@@ -240,6 +247,47 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("UQ_NormalizedTx_Ref");
 
                     b.ToTable("normalized_transactions", (string)null);
+                });
+
+            modelBuilder.Entity("FinSight.Domain.Entities.PasswordResetToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("gen_random_uuid()");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("expires_at_utc");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("token_hash");
+
+                    b.Property<DateTime?>("UsedAtUtc")
+                        .HasColumnType("timestamptz")
+                        .HasColumnName("used_at_utc");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("IX_password_reset_tokens_user_id");
+
+                    b.ToTable("password_reset_tokens", (string)null);
                 });
 
             modelBuilder.Entity("FinSight.Domain.Entities.PaymentRecord", b =>
@@ -604,6 +652,14 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("FinSight.Domain.Entities.Batch", b =>
+                {
+                    b.HasOne("FinSight.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
             modelBuilder.Entity("FinSight.Domain.Entities.NormalizedTransaction", b =>
                 {
                     b.HasOne("FinSight.Domain.Entities.BankRecord", null)
@@ -626,6 +682,15 @@ namespace FinSight.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("SettlementRecordId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("FinSight.Domain.Entities.PasswordResetToken", b =>
+                {
+                    b.HasOne("FinSight.Domain.Entities.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("FinSight.Domain.Entities.PaymentRecord", b =>

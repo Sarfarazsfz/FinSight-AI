@@ -202,6 +202,14 @@ public sealed class AuthServiceTests
             return Task.FromResult(_user);
         }
 
+        public Task<User?> GetByIdAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(
+                _user is not null && _user.Id == id ? _user : null);
+        }
+
         public Task AddAsync(
             User user,
             CancellationToken cancellationToken = default)

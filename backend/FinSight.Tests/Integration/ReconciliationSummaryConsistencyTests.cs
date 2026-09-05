@@ -48,6 +48,23 @@ public sealed class ReconciliationSummaryConsistencyTests
             scope.ServiceProvider
                 .GetRequiredService<IReconciliationService>();
 
+        // batches.created_by_user_id has a real foreign key to users(id),
+        // so ownership needs an actual persisted user, not an arbitrary
+        // Guid.
+        var owner =
+            new FinSight.Domain.Entities.User(
+                "summary-consistency-owner@example.test",
+                "not-a-real-hash-test-only",
+                "User");
+
+        await scope.ServiceProvider
+            .GetRequiredService<IUserRepository>()
+            .AddAsync(owner);
+
+        await scope.ServiceProvider
+            .GetRequiredService<IUnitOfWork>()
+            .SaveChangesAsync();
+
         await using var paymentsStream =
             CreateStream(
                 """
@@ -81,6 +98,9 @@ public sealed class ReconciliationSummaryConsistencyTests
 
                     CreatedBy =
                         "integration-test",
+
+                    CreatedByUserId =
+                        owner.Id,
 
                     PaymentFile =
                         paymentsStream,
@@ -144,7 +164,13 @@ public sealed class ReconciliationSummaryConsistencyTests
                 scope.ServiceProvider
                     .GetRequiredService<IReconciliationSummaryBuilder>(),
                 scope.ServiceProvider
-                    .GetRequiredService<IGroundTruthComparisonService>());
+                    .GetRequiredService<IGroundTruthComparisonService>(),
+                new FinSight.Tests.Authorization.FixedCurrentUserService(
+                    owner.Id),
+                scope.ServiceProvider
+                    .GetRequiredService<IBatchAccessService>(),
+                scope.ServiceProvider
+                    .GetRequiredService<IAuditLogReader>());
 
         var controllerActionResult =
             await controller.GetSummary(
@@ -235,7 +261,13 @@ public sealed class ReconciliationSummaryConsistencyTests
                 scope.ServiceProvider
                     .GetRequiredService<IReconciliationSummaryBuilder>(),
                 scope.ServiceProvider
-                    .GetRequiredService<IGroundTruthComparisonService>());
+                    .GetRequiredService<IGroundTruthComparisonService>(),
+                new FinSight.Tests.Authorization.FixedCurrentUserService(
+                    Guid.NewGuid()),
+                scope.ServiceProvider
+                    .GetRequiredService<IBatchAccessService>(),
+                scope.ServiceProvider
+                    .GetRequiredService<IAuditLogReader>());
 
         var result =
             await controller.GetSummary(

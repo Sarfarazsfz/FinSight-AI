@@ -446,6 +446,138 @@ public sealed class AiProviderRouterTests
     }
 
     [Test]
+    public async Task ProductionOrder_GeminiThenNvidiaOnly_GeminiSuccess_NvidiaNeverCalled()
+    {
+        // P-1I-FIX-4: the actual intended production/demo configuration
+        // for BOTH AI surfaces is exactly ["Gemini", "NVIDIA"] -- no
+        // OpenAI in the chain at all. This proves that exact two-provider
+        // shape end to end, not just the more general N-provider cases
+        // above.
+        var gemini =
+            new FakeGeminiProvider(
+                isAvailable: true,
+                responseText: "Gemini response.");
+
+        var nvidia =
+            new FakeNvidiaProvider(
+                isAvailable: true,
+                responseText: "Should not be called.");
+
+        var openAi =
+            new FakeOpenAiProvider(
+                isAvailable: true,
+                responseText: "Should not be called.");
+
+        var router =
+            CreateRouter(
+                gemini,
+                nvidia,
+                openAi,
+                order: new[] { "Gemini", "NVIDIA" },
+                fallbackEnabled: true);
+
+        var result =
+            await router.GenerateExplanationAsync(
+                CreateRequest());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Provider, Is.EqualTo("Gemini"));
+            Assert.That(gemini.Calls, Is.EqualTo(1));
+            Assert.That(nvidia.Calls, Is.EqualTo(0));
+            Assert.That(openAi.Calls, Is.EqualTo(0));
+        });
+    }
+
+    [Test]
+    public async Task ProductionOrder_GeminiThenNvidiaOnly_GeminiFailure_NvidiaSucceeds()
+    {
+        var gemini =
+            new FakeGeminiProvider(
+                isAvailable: true,
+                responseText: "Gemini response.",
+                exception: new InvalidOperationException("Gemini failed."));
+
+        var nvidia =
+            new FakeNvidiaProvider(
+                isAvailable: true,
+                responseText: "NVIDIA response.");
+
+        var openAi =
+            new FakeOpenAiProvider(
+                isAvailable: true,
+                responseText: "Should not be called.");
+
+        var router =
+            CreateRouter(
+                gemini,
+                nvidia,
+                openAi,
+                order: new[] { "Gemini", "NVIDIA" },
+                fallbackEnabled: true);
+
+        var result =
+            await router.GenerateExplanationAsync(
+                CreateRequest());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Provider, Is.EqualTo("NVIDIA"));
+            Assert.That(gemini.Calls, Is.EqualTo(1));
+            Assert.That(nvidia.Calls, Is.EqualTo(1));
+            Assert.That(openAi.Calls, Is.EqualTo(0));
+        });
+    }
+
+    [Test]
+    public void ProductionOrder_GeminiThenNvidiaOnly_BothFail_ThrowsUnavailable()
+    {
+        var gemini =
+            new FakeGeminiProvider(
+                isAvailable: true,
+                responseText: "unused",
+                exception: new InvalidOperationException("Gemini failed."));
+
+        var nvidia =
+            new FakeNvidiaProvider(
+                isAvailable: true,
+                responseText: "unused",
+                exception: new InvalidOperationException("NVIDIA failed."));
+
+        var openAi =
+            new FakeOpenAiProvider(
+                isAvailable: true,
+                responseText: "Should not be called.");
+
+        var router =
+            CreateRouter(
+                gemini,
+                nvidia,
+                openAi,
+                order: new[] { "Gemini", "NVIDIA" },
+                fallbackEnabled: true);
+
+        var caughtException =
+            Assert.ThrowsAsync<AiProviderUnavailableException>(
+                async () =>
+                    await router.GenerateExplanationAsync(
+                        CreateRequest()));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                caughtException!.Message,
+                Is.EqualTo(
+                    "Both AI providers failed. Primary provider 'Gemini' " +
+                    "and fallback provider 'NVIDIA' were unavailable."));
+
+            Assert.That(gemini.Calls, Is.EqualTo(1));
+            Assert.That(nvidia.Calls, Is.EqualTo(1));
+            Assert.That(openAi.Calls, Is.EqualTo(0));
+        });
+    }
+
+    [Test]
     public async Task NvidiaSuccess_OpenAiNotCalled()
     {
         var gemini =

@@ -1,3 +1,4 @@
+using FinSight.Api.Authentication;
 using FinSight.Application.Abstractions.Persistence;
 using FinSight.Application.Abstractions.Services;
 using FinSight.Application.DTOs.Ingestion;
@@ -15,13 +16,19 @@ public class BatchesController : ControllerBase
 {
     private readonly IBatchIngestionService _batchIngestionService;
     private readonly IBatchRepository _batchRepository;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IBatchAccessService _batchAccessService;
 
     public BatchesController(
         IBatchIngestionService batchIngestionService,
-        IBatchRepository batchRepository)
+        IBatchRepository batchRepository,
+        ICurrentUserService currentUserService,
+        IBatchAccessService batchAccessService)
     {
         _batchIngestionService = batchIngestionService;
         _batchRepository = batchRepository;
+        _currentUserService = currentUserService;
+        _batchAccessService = batchAccessService;
     }
 
     [HttpPost]
@@ -78,6 +85,17 @@ public class BatchesController : ControllerBase
                 title: "Bad Request");
         }
 
+        // Ownership is assigned from the authenticated caller, never from
+        // request input -- there is no field in this request a client
+        // could use to claim a batch as someone else's or as unowned.
+        if (!_currentUserService.TryGetCurrentUserId(out var currentUserId))
+        {
+            return Problem(
+                detail: "Authentication is required.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+
         await using var paymentStream =
             paymentsFile.OpenReadStream();
 
@@ -91,6 +109,7 @@ public class BatchesController : ControllerBase
         {
             BatchLabel = batchLabel.Trim(),
             CreatedBy = createdBy.Trim(),
+            CreatedByUserId = currentUserId,
             PaymentFile = paymentStream,
             BankFile = bankStream,
             SettlementFile = settlementStream
@@ -160,8 +179,21 @@ public class BatchesController : ControllerBase
                 title: "Bad Request");
         }
 
+        if (!_currentUserService.TryGetCurrentUserId(out var currentUserId))
+        {
+            return Problem(
+                detail: "Authentication is required.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+
+        // Scoped to the caller -- never the global ledger. What the
+        // reconciliation breakdown calls a "server-authoritative ledger"
+        // means authoritative for its owner, not visible to every
+        // authenticated user.
         var page =
-            await _batchRepository.GetPageAsync(
+            await _batchRepository.GetPageByOwnerAsync(
+                currentUserId,
                 pageNumber,
                 pageSize,
                 cancellationToken);
@@ -212,8 +244,20 @@ public class BatchesController : ControllerBase
         Guid batchId,
         CancellationToken cancellationToken)
     {
-        var batch = await _batchRepository.GetByIdAsync(
+        if (!_currentUserService.TryGetCurrentUserId(out var currentUserId))
+        {
+            return Problem(
+                detail: "Authentication is required.",
+                statusCode: StatusCodes.Status401Unauthorized,
+                title: "Unauthorized");
+        }
+
+        // Identical message, and identical status code, whether the batch
+        // does not exist or belongs to someone else -- a client must not
+        // be able to distinguish "not found" from "not yours."
+        var batch = await _batchAccessService.GetOwnedBatchAsync(
             batchId,
+            currentUserId,
             cancellationToken);
 
         if (batch is null)

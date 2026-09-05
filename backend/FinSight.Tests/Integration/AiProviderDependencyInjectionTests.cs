@@ -6,6 +6,7 @@ using FinSight.Application.Exceptions;
 using FinSight.Infrastructure;
 using FinSight.Infrastructure.AI;
 using FinSight.Infrastructure.Authentication;
+using FinSight.Tests.Authorization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -356,6 +357,15 @@ public sealed class AiProviderDependencyInjectionTests
                     "FinSightTestsJwtSecretKey-ChangeOnlyForTests-1234567890",
                 ExpirationMinutes = 60
             });
+
+        // ICurrentUserService is deliberately registered at the API host
+        // layer (Program.cs), not inside AddInfrastructure, because it
+        // depends on IHttpContextAccessor -- unavailable in this bare
+        // ServiceCollection with no HTTP host. These tests only care
+        // about the AI provider DI graph, so a fixed fake is enough to
+        // let ReconciliationController construct.
+        services.AddScoped<ICurrentUserService>(
+            _ => new FixedCurrentUserService(Guid.NewGuid()));
 
         // ValidateOnBuild proves the ENTIRE registered DI graph is
         // resolvable with this configuration -- not just the specific

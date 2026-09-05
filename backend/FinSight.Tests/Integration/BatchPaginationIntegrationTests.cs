@@ -290,13 +290,22 @@ public sealed class BatchPaginationIntegrationTests
     }
 
     private static BatchesController CreateController(
-        Microsoft.Extensions.DependencyInjection.AsyncServiceScope scope)
+        Microsoft.Extensions.DependencyInjection.AsyncServiceScope scope,
+        Guid? currentUserId = null)
     {
+        // The four tests using this helper are pure input-validation /
+        // empty-result checks -- which user is "current" never affects
+        // their outcome, so a fresh id is enough when the caller doesn't
+        // care.
         return new BatchesController(
             scope.ServiceProvider
                 .GetRequiredService<IBatchIngestionService>(),
             scope.ServiceProvider
-                .GetRequiredService<IBatchRepository>());
+                .GetRequiredService<IBatchRepository>(),
+            new FinSight.Tests.Authorization.FixedCurrentUserService(
+                currentUserId ?? Guid.NewGuid()),
+            scope.ServiceProvider
+                .GetRequiredService<IBatchAccessService>());
     }
 
     private static async Task SetCreatedAtAsync(

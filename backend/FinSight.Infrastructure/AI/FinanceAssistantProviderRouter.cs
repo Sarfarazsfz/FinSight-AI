@@ -97,8 +97,21 @@ public sealed class FinanceAssistantProviderRouter
                 candidates,
                 invoke: (provider, request, cancellationToken) =>
                     provider.AskAsync(request, cancellationToken),
+                // P-1I-FIX-2: was a plain InvalidOperationException, which
+                // GlobalExceptionHandler has no mapping for -- it fell
+                // through to the generic 500 ("An unexpected error
+                // occurred") instead of the calm, tested 503 every other
+                // AI-unavailable path produces. Confirmed live: with the
+                // new per-provider timeout in place, a single-effective-
+                // provider Finance Assistant call that times out is
+                // exactly this path. AiProviderRouter's sibling
+                // single-failure factory already wraps in
+                // AiProviderUnavailableException (see its own
+                // singleFailureExceptionFactory); this brings
+                // FinanceAssistantProviderRouter into parity with an
+                // already-correct sibling, not a new invented design.
                 singleFailureExceptionFactory: (name, ex, _) =>
-                    new InvalidOperationException(
+                    new FinanceAssistantProviderUnavailableException(
                         $"Finance Assistant provider '{name}' failed.",
                         ex),
                 allFailedExceptionFactory: (failures, _) =>

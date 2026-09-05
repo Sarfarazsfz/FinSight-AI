@@ -24,6 +24,16 @@ public class UserRepository : IUserRepository
                 cancellationToken);
     }
 
+    public async Task<User?> GetByIdAsync(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Users
+            .FirstOrDefaultAsync(
+                x => x.Id == id,
+                cancellationToken);
+    }
+
     public async Task AddAsync(
         User user,
         CancellationToken cancellationToken = default)

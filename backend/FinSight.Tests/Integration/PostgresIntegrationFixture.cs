@@ -14,6 +14,14 @@ public sealed class PostgresIntegrationFixture
 
     private readonly ServiceProvider _serviceProvider;
 
+    /// <summary>
+    /// Whether a dedicated test database has been configured for this run.
+    /// </summary>
+    public static bool IsConfigured =>
+        !string.IsNullOrWhiteSpace(
+            Environment.GetEnvironmentVariable(
+                ConnectionEnvironmentVariable));
+
     public PostgresIntegrationFixture()
     {
         var connectionString =
@@ -22,10 +30,25 @@ public sealed class PostgresIntegrationFixture
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            throw new InvalidOperationException(
-                $"Environment variable '{ConnectionEnvironmentVariable}' " +
-                "is required for PostgreSQL integration tests. " +
-                "Use a dedicated test database.");
+            // Ignore, not fail.
+            //
+            // These tests need a real PostgreSQL database that the fixture
+            // drops and re-migrates, so they cannot run on a machine that
+            // has not opted in by pointing FINSIGHT_TEST_CONNECTION at a
+            // throwaway database. That is a missing *environment*, not a
+            // product regression -- reporting it as a failure made a
+            // healthy checkout look broken to anyone running a plain
+            // `dotnet test`.
+            //
+            // Thrown from [OneTimeSetUp], NUnit's IgnoreException marks
+            // every test in the fixture Skipped with the reason below.
+            // Nothing is silently swallowed: no assertion is bypassed, and
+            // when the variable IS set these tests run exactly as before.
+            Assert.Ignore(
+                $"Skipped: {ConnectionEnvironmentVariable} is not configured. " +
+                "Set it to a dedicated throwaway PostgreSQL database to run " +
+                "the database-backed integration tests -- the fixture deletes " +
+                "and re-migrates that database on every test.");
         }
 
         var configuration =

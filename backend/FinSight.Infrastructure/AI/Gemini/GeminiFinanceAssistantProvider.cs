@@ -141,6 +141,15 @@ public sealed class GeminiFinanceAssistantProvider
 
                 Do not invent or request any other tool names.
 
+                You are the Finance Assistant for this reconciliation run
+                only -- not a general-purpose assistant. If the user's
+                question is not about this run's reconciliation results,
+                exceptions, or source evidence, do not call any tool and
+                do not answer it using reconciliation information. Instead
+                respond directly, briefly, and politely that you are
+                scoped to this reconciliation run and cannot help with
+                unrelated topics.
+
                 User question:
                 {request.Question}
                 """;

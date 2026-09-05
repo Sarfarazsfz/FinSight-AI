@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using FinSight.Application.Abstractions.Persistence;
+using FinSight.Application.Abstractions.Services;
 using FinSight.Application.AI;
 using FinSight.Application.Exceptions;
 using FinSight.Domain.Entities;
@@ -194,6 +195,16 @@ public sealed class GlobalExceptionHandlerTests
                         services.AddScoped<
                             IFinanceAssistantService,
                             ThrowingFinanceAssistantService>();
+
+                        // This test targets the exception-handling
+                        // pipeline, not ownership -- the random RunId it
+                        // posts belongs to no one, so without this
+                        // override the real BatchAccessService would
+                        // correctly 404 it before ever reaching
+                        // ThrowingFinanceAssistantService.
+                        services.AddScoped<
+                            IBatchAccessService,
+                            AlwaysOwnedBatchAccessService>();
                     });
                 });
 
@@ -263,9 +274,14 @@ public sealed class GlobalExceptionHandlerTests
             var claims =
                 new[]
                 {
+                    // A real Guid, not an arbitrary label: ICurrentUserService
+                    // parses this claim via Guid.TryParse (exactly as it does
+                    // in production, from the real JWT's NameIdentifier
+                    // claim), and these tests need a valid current-user id to
+                    // reach the throwing fakes below at all.
                     new Claim(
                         ClaimTypes.NameIdentifier,
-                        "test-user"),
+                        Guid.NewGuid().ToString()),
 
                     new Claim(
                         ClaimTypes.Name,
@@ -316,6 +332,16 @@ public sealed class GlobalExceptionHandlerTests
         {
             throw new NotSupportedException();
         }
+
+        public Task<(IReadOnlyList<Batch> Items, int TotalCount)>
+            GetPageByOwnerAsync(
+                Guid ownerUserId,
+                int pageNumber,
+                int pageSize,
+                CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
     }
 
     private sealed class ThrowingAiProviderRepository
@@ -344,6 +370,16 @@ public sealed class GlobalExceptionHandlerTests
         {
             throw new NotSupportedException();
         }
+
+        public Task<(IReadOnlyList<Batch> Items, int TotalCount)>
+            GetPageByOwnerAsync(
+                Guid ownerUserId,
+                int pageNumber,
+                int pageSize,
+                CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
     }
 
     private sealed class ThrowingFinanceAssistantService
@@ -356,5 +392,27 @@ public sealed class GlobalExceptionHandlerTests
             throw new FinanceAssistantProviderUnavailableException(
                 "Both Finance Assistant AI providers failed.");
         }
+    }
+
+    /// <summary>
+    /// Treats every run as owned by whoever asks -- this test exercises
+    /// the global exception handler around the AI provider call, not
+    /// ownership enforcement (which is covered separately in
+    /// FinanceAssistantControllerTests).
+    /// </summary>
+    private sealed class AlwaysOwnedBatchAccessService : IBatchAccessService
+    {
+        public Task<Batch?> GetOwnedBatchAsync(
+            Guid batchId,
+            Guid userId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException(
+                "This test never calls GetOwnedBatchAsync.");
+
+        public Task<ReconciliationRun?> GetOwnedRunAsync(
+            Guid runId,
+            Guid userId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<ReconciliationRun?>(new ReconciliationRun(Guid.NewGuid()));
     }
 }

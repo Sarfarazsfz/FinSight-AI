@@ -47,6 +47,20 @@ public class BatchConfiguration : IEntityTypeConfiguration<Batch>
             .HasMaxLength(100)
             .IsRequired();
 
+        // Nullable ownership root -- see Batch.CreatedByUserId. SetNull
+        // rather than Cascade on user deletion: a deleted account must
+        // not take financial records with it.
+        builder.Property(x => x.CreatedByUserId)
+            .HasColumnName("created_by_user_id");
+
+        builder.HasOne<User>()
+            .WithMany()
+            .HasForeignKey(x => x.CreatedByUserId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasIndex(x => x.CreatedByUserId)
+            .HasDatabaseName("IX_batches_created_by_user_id");
+
         builder.Property(x => x.CreatedAt)
             .HasColumnName("created_at")
             .HasColumnType("timestamptz")

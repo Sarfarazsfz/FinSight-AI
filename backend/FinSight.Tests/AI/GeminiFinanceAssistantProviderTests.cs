@@ -51,6 +51,55 @@ public sealed class GeminiFinanceAssistantProviderTests
     }
 
     [Test]
+    public async Task AskAsync_WhenOfferingTools_TellsTheModelToDeclineOffTopicQuestionsInsteadOfCallingATool()
+    {
+        // P-1I-FIX-3: the tool-offering turn is the ONLY place this can be
+        // enforced without a second classification call -- once the model
+        // decides not to call a tool, FinanceAssistantService returns its
+        // direct answer immediately (RequiresToolExecution == false), so
+        // this single instruction is what stops "What is the capital of
+        // India?" from either being answered with unrelated content or,
+        // worse, with fabricated reconciliation facts.
+        var fakeClient =
+            new FakeFinanceAssistantModelClient(
+                CreateTextResponse("placeholder"));
+
+        var provider =
+            new GeminiFinanceAssistantProvider(fakeClient, "gemini-2.5-flash");
+
+        await provider.AskAsync(
+            new FinanceAssistantProviderRequest
+            {
+                RunId = Guid.NewGuid(),
+                Question = "What is the capital of India?",
+                Tools = new[]
+                {
+                    new FinanceToolDefinition
+                    {
+                        Name = "getReconciliationSummary",
+                        Description = "x",
+                        Parameters = new Dictionary<string, FinanceToolParameter>(),
+                    },
+                },
+            });
+
+        var sentText = fakeClient.LastContents.Single().Parts!.Single().Text;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                sentText,
+                Does.Contain("Finance Assistant for this reconciliation run"));
+
+            Assert.That(
+                sentText,
+                Does.Contain("do not call any tool"));
+
+            Assert.That(sentText, Does.Contain("What is the capital of India?"));
+        });
+    }
+
+    [Test]
     public async Task AskAsync_WithFunctionCall_ReturnsNameIdAndArguments()
     {
         var runId = Guid.NewGuid();

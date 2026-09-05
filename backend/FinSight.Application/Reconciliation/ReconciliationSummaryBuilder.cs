@@ -45,6 +45,33 @@ public sealed class ReconciliationSummaryBuilder
                 runId,
                 cancellationToken);
 
+        // Derived from the run's own persisted timestamps -- the same
+        // values GET /runs/{id} already exposes -- so the figure is
+        // server-authoritative and needs no new column, table or endpoint.
+        // StartedAt is stamped when the run is constructed and CompletedAt
+        // when it completes, so the interval brackets the matching and
+        // classification loop.
+        double? durationMs = null;
+        double? recordsPerSecond = null;
+
+        if (run.CompletedAt is { } completedAt)
+        {
+            var elapsed = completedAt - run.StartedAt;
+
+            // A negative interval would mean clock adjustment during the
+            // run; report nothing rather than a nonsensical rate.
+            if (elapsed >= TimeSpan.Zero)
+            {
+                durationMs = elapsed.TotalMilliseconds;
+
+                if (elapsed.TotalSeconds > 0)
+                {
+                    recordsPerSecond =
+                        results.Count / elapsed.TotalSeconds;
+                }
+            }
+        }
+
         return new ReconciliationRunSummaryResponse
         {
             RunId = run.Id,
@@ -69,7 +96,13 @@ public sealed class ReconciliationSummaryBuilder
             MatchRate =
                 run.MatchRate ?? 0.00m,
             ExceptionCount =
-                exceptions.Count
+                exceptions.Count,
+
+            DurationMs =
+                durationMs,
+
+            RecordsPerSecond =
+                recordsPerSecond
         };
     }
 }

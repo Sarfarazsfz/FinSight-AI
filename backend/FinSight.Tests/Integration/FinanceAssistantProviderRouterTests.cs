@@ -72,6 +72,96 @@ public sealed class FinanceAssistantProviderRouterTests
     }
 
     [Test]
+    public async Task ProductionOrder_GeminiThenNvidiaOnly_GeminiSuccess_NvidiaNeverCalled()
+    {
+        // P-1I-FIX-4: the actual intended production/demo configuration
+        // is exactly ["Gemini", "NVIDIA"] -- no OpenAI in the chain at
+        // all. Proves that exact two-provider shape end to end.
+        var gemini = SucceedingProvider("Gemini", "Gemini answer");
+        var nvidia = SucceedingProvider("NVIDIA", "Should not be called");
+        var openAi = SucceedingProvider("OpenAI", "Should not be called");
+
+        var router =
+            CreateRouter(
+                gemini,
+                nvidia,
+                openAi,
+                order: new[] { "Gemini", "NVIDIA" },
+                fallbackEnabled: true);
+
+        var response =
+            await router.AskAsync(CreateRequest());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.Answer, Is.EqualTo("Gemini answer"));
+            Assert.That(gemini.CallCount, Is.EqualTo(1));
+            Assert.That(nvidia.CallCount, Is.EqualTo(0));
+            Assert.That(openAi.CallCount, Is.EqualTo(0));
+        });
+    }
+
+    [Test]
+    public async Task ProductionOrder_GeminiThenNvidiaOnly_GeminiFailure_NvidiaSucceeds()
+    {
+        var gemini = FailingProvider("Gemini", "Gemini unavailable");
+        var nvidia = SucceedingProvider("NVIDIA", "NVIDIA answer");
+        var openAi = SucceedingProvider("OpenAI", "Should not be called");
+
+        var router =
+            CreateRouter(
+                gemini,
+                nvidia,
+                openAi,
+                order: new[] { "Gemini", "NVIDIA" },
+                fallbackEnabled: true);
+
+        var response =
+            await router.AskAsync(CreateRequest());
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.Answer, Is.EqualTo("NVIDIA answer"));
+            Assert.That(gemini.CallCount, Is.EqualTo(1));
+            Assert.That(nvidia.CallCount, Is.EqualTo(1));
+            Assert.That(openAi.CallCount, Is.EqualTo(0));
+        });
+    }
+
+    [Test]
+    public void ProductionOrder_GeminiThenNvidiaOnly_BothFail_ThrowsUnavailable()
+    {
+        var gemini = FailingProvider("Gemini", "Gemini unavailable");
+        var nvidia = FailingProvider("NVIDIA", "NVIDIA unavailable");
+        var openAi = SucceedingProvider("OpenAI", "Should not be called");
+
+        var router =
+            CreateRouter(
+                gemini,
+                nvidia,
+                openAi,
+                order: new[] { "Gemini", "NVIDIA" },
+                fallbackEnabled: true);
+
+        var exception =
+            Assert.ThrowsAsync<FinanceAssistantProviderUnavailableException>(
+                async () =>
+                    await router.AskAsync(CreateRequest()));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                exception!.Message,
+                Is.EqualTo(
+                    "All 2 configured Finance Assistant AI providers failed."));
+
+            Assert.That(gemini.CallCount, Is.EqualTo(1));
+            Assert.That(nvidia.CallCount, Is.EqualTo(1));
+            Assert.That(openAi.CallCount, Is.EqualTo(0));
+        });
+    }
+
+    [Test]
     public async Task GeminiFailure_NvidiaSuccess_OpenAiNotCalled()
     {
         var gemini = FailingProvider("Gemini", "Gemini unavailable");
@@ -183,7 +273,7 @@ public sealed class FinanceAssistantProviderRouterTests
                 fallbackEnabled: false);
 
         var exception =
-            Assert.ThrowsAsync<InvalidOperationException>(
+            Assert.ThrowsAsync<FinanceAssistantProviderUnavailableException>(
                 async () =>
                     await router.AskAsync(CreateRequest()));
 
@@ -193,13 +283,14 @@ public sealed class FinanceAssistantProviderRouterTests
                 exception!.Message,
                 Does.Contain("Finance Assistant provider 'Gemini' failed."));
 
-            // Never a FinanceAssistantProviderUnavailableException here --
-            // this is the single-provider-failed shape, unchanged from
-            // before NVIDIA existed.
-            Assert.That(
-                exception,
-                Is.Not.InstanceOf<FinanceAssistantProviderUnavailableException>());
-
+            // P-1I-FIX-2: this WAS a plain InvalidOperationException --
+            // GlobalExceptionHandler has no mapping for that, so a
+            // single-effective-provider failure (of which a timeout is
+            // now a real, live-observed case) fell through to a generic
+            // 500 instead of the calm, tested 503 every other
+            // AI-unavailable path produces. Brought into parity with
+            // AiProviderRouter's own already-correct single-failure
+            // factory.
             Assert.That(gemini.CallCount, Is.EqualTo(1));
             Assert.That(nvidia.CallCount, Is.EqualTo(0));
             Assert.That(openAi.CallCount, Is.EqualTo(0));

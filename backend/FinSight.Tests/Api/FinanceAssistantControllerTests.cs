@@ -1,5 +1,8 @@
+using FinSight.Application.Abstractions.Services;
 using FinSight.Application.AI;
 using FinSight.Api.Controllers;
+using FinSight.Domain.Entities;
+using FinSight.Tests.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
@@ -10,6 +13,52 @@ public sealed class FinanceAssistantControllerTests
 {
     private static readonly Guid ValidRunId =
         Guid.Parse("11111111-1111-1111-1111-111111111111");
+
+    private static readonly Guid CurrentUserId = Guid.NewGuid();
+
+    /// <summary>
+    /// Owns exactly ValidRunId for CurrentUserId, and nothing else -- lets
+    /// the not-owned test below use any other Guid to prove rejection
+    /// without needing a real database.
+    /// </summary>
+    private static FinanceAssistantController CreateController(
+        FakeFinanceAssistantService service) =>
+        new(
+            service,
+            new FixedCurrentUserService(CurrentUserId),
+            new FakeBatchAccessService(ValidRunId, CurrentUserId));
+
+    private sealed class FakeBatchAccessService : IBatchAccessService
+    {
+        private readonly Guid _ownedRunId;
+        private readonly Guid _ownerUserId;
+
+        public FakeBatchAccessService(Guid ownedRunId, Guid ownerUserId)
+        {
+            _ownedRunId = ownedRunId;
+            _ownerUserId = ownerUserId;
+        }
+
+        public Task<Batch?> GetOwnedBatchAsync(
+            Guid batchId,
+            Guid userId,
+            CancellationToken cancellationToken = default) =>
+            throw new NotSupportedException(
+                "Ask() checks run ownership, not batch ownership directly.");
+
+        public Task<ReconciliationRun?> GetOwnedRunAsync(
+            Guid runId,
+            Guid userId,
+            CancellationToken cancellationToken = default)
+        {
+            var owned =
+                runId == _ownedRunId && userId == _ownerUserId
+                    ? new ReconciliationRun(Guid.NewGuid())
+                    : null;
+
+            return Task.FromResult(owned);
+        }
+    }
 
     [Test]
     public async Task Ask_WithValidRequest_ReturnsOk()
@@ -30,7 +79,7 @@ public sealed class FinanceAssistantControllerTests
             new FakeFinanceAssistantService(expected);
 
         var controller =
-            new FinanceAssistantController(service);
+            CreateController(service);
 
         var result =
             await controller.Ask(
@@ -65,7 +114,7 @@ public sealed class FinanceAssistantControllerTests
                 new FinanceAssistantResponse());
 
         var controller =
-            new FinanceAssistantController(service);
+            CreateController(service);
 
         var result =
             await controller.Ask(
@@ -104,7 +153,7 @@ public sealed class FinanceAssistantControllerTests
                 new FinanceAssistantResponse());
 
         var controller =
-            new FinanceAssistantController(service);
+            CreateController(service);
 
         var result =
             await controller.Ask(
@@ -140,7 +189,7 @@ public sealed class FinanceAssistantControllerTests
                     "Question is required."));
 
         var controller =
-            new FinanceAssistantController(service);
+            CreateController(service);
 
         var result =
             await controller.Ask(
@@ -165,6 +214,42 @@ public sealed class FinanceAssistantControllerTests
         Assert.That(
             service.Calls,
             Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task Ask_WithARunIdNotOwnedByTheCurrentUser_Returns404WithoutCallingTheAssistant()
+    {
+        var service =
+            new FakeFinanceAssistantService(
+                new FinanceAssistantResponse());
+
+        var controller =
+            CreateController(service);
+
+        var someoneElsesRunId = Guid.NewGuid();
+
+        var result =
+            await controller.Ask(
+                new FinanceAssistantRequest
+                {
+                    RunId = someoneElsesRunId,
+                    Question = "Summarize this run."
+                },
+                CancellationToken.None);
+
+        var objectResult =
+            result.Result as ObjectResult;
+
+        Assert.That(objectResult, Is.Not.Null);
+
+        Assert.That(
+            objectResult!.StatusCode,
+            Is.EqualTo(StatusCodes.Status404NotFound));
+
+        // The assistant -- and therefore its AI provider and its
+        // read-only tools -- must never be invoked for a run the caller
+        // does not own.
+        Assert.That(service.Calls, Is.EqualTo(0));
     }
 
     [Test]

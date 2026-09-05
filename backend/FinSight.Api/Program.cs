@@ -1,4 +1,7 @@
+using FinSight.Api.Authentication;
 using FinSight.Api.ErrorHandling;
+using FinSight.Api.Provisioning;
+using FinSight.Application.Abstractions.Services;
 using FinSight.Infrastructure;
 using FinSight.Infrastructure.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -6,6 +9,24 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using System.Text;
+
+// Offline provisioning branch:
+//
+//     dotnet run -- create-user --email <email> --role <Admin|User>
+//
+// FinSight has no public registration endpoint by design, so the first
+// account has to be created out-of-band. This runs and returns before any
+// web-host wiring below -- the API is never started, and the running API
+// never exposes provisioning. It is placed ahead of
+// WebApplication.CreateBuilder deliberately: that call's command-line
+// configuration provider rejects a bare token like "create-user", so the
+// check cannot live after it.
+//
+// A plain `dotnet run` has args.Length == 0 and is completely unaffected.
+if (UserProvisioningCommand.Matches(args))
+{
+    return await UserProvisioningCommand.RunAsync(args);
+}
 
 var builder =
     WebApplication.CreateBuilder(args);
@@ -191,6 +212,13 @@ builder.Services.AddAuthorization();
 builder.Services.AddInfrastructure(
     builder.Configuration);
 
+// Current-user identity. Registered here, not from AddInfrastructure --
+// IHttpContextAccessor is a web-host concept, and AddInfrastructure is
+// also consumed by the offline `create-user` command and the AI provider
+// DI tests, neither of which has an HTTP context.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+
 var app =
     builder.Build();
 
@@ -217,6 +245,11 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+// Required because the provisioning branch above returns an exit code,
+// which makes this entry point int-returning. Reached only after the web
+// host shuts down normally; it does not change runtime behavior.
+return 0;
 
 public partial class Program
 {

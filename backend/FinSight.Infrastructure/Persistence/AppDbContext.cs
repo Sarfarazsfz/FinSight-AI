@@ -20,6 +20,7 @@ public class AppDbContext : DbContext
     public DbSet<ReconciliationException> ReconciliationExceptions => Set<ReconciliationException>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

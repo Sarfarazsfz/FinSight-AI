@@ -284,6 +284,15 @@ public sealed class BatchIngestionServiceValidationTests
         {
             throw new NotSupportedException();
         }
+
+        public Task<(IReadOnlyList<Batch> Items, int TotalCount)> GetPageByOwnerAsync(
+            Guid ownerUserId,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
     }
 
     private sealed class FakePaymentRecordRepository : IPaymentRecordRepository

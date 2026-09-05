@@ -60,6 +60,24 @@ public class User
         CreatedAt = DateTime.UtcNow;
     }
 
+    /// <summary>
+    /// Replaces the stored credential. Takes an already-hashed value --
+    /// the domain never sees, accepts, or stores a plaintext password;
+    /// hashing stays the sole responsibility of IPasswordService so there
+    /// is exactly one hashing implementation in the system.
+    /// </summary>
+    public void ChangePasswordHash(string passwordHash)
+    {
+        if (string.IsNullOrWhiteSpace(passwordHash))
+        {
+            throw new ArgumentException(
+                "Password hash is required.",
+                nameof(passwordHash));
+        }
+
+        PasswordHash = passwordHash;
+    }
+
     public void Deactivate()
     {
         IsActive = false;

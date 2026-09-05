@@ -18,6 +18,18 @@ public class Batch
 
     public string CreatedBy { get; private set; } = string.Empty;
 
+    /// <summary>
+    /// The ownership root for every downstream reconciliation resource
+    /// (runs, results, exceptions all resolve ownership through the batch
+    /// they belong to -- see IBatchAccessService). Nullable because
+    /// batches created before ownership existed have no way to be
+    /// correlated to a real user without inventing one; those rows stay
+    /// unowned rather than being silently assigned. A null value means
+    /// the batch is inaccessible through the ownership boundary, by
+    /// design -- deny, not a random grant.
+    /// </summary>
+    public Guid? CreatedByUserId { get; private set; }
+
     public DateTime CreatedAt { get; private set; }
 
     private Batch()
@@ -30,7 +42,8 @@ public class Batch
         int bankRecordCount,
         int settlementRecordCount,
         string validationStatus,
-        string createdBy)
+        string createdBy,
+        Guid? createdByUserId = null)
     {
         if (string.IsNullOrWhiteSpace(batchLabel))
         {
@@ -90,6 +103,8 @@ public class Batch
         ValidationStatus = validationStatus.Trim();
 
         CreatedBy = createdBy.Trim();
+
+        CreatedByUserId = createdByUserId;
 
         CreatedAt = DateTime.UtcNow;
     }

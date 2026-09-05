@@ -31,9 +31,43 @@ namespace FinSight.Infrastructure.AI;
 ///    is used with every recorded (name, error) pair.
 ///
 /// No provider is ever invoked more than once. No retries, no recursion.
+///
+/// P-1I-FIX-2: every individual provider call is wrapped in its own
+/// bounded timeout (<see cref="DefaultPerProviderCallTimeout"/>). Before this
+/// fix, nothing anywhere in the AI call path -- not this chain, not
+/// either router, not any of the six provider implementations, not the
+/// ASP.NET Core host -- ever bounded how long a single provider call
+/// could take; a provider that never responded left the whole HTTP
+/// request pending indefinitely, with no fallback, no failure response,
+/// and no audit event ever written (the existing failure-audit code
+/// is correct but was simply unreachable, since the awaited call never
+/// threw and never returned). A provider that merely times out is
+/// treated exactly like any other per-provider failure -- the chain
+/// still falls through to the next candidate, or reports a normal
+/// bounded failure if it was the last one. The caller's own
+/// <paramref name="cancellationToken"/> (e.g. the HTTP request being
+/// aborted) is still distinguished from this internal timeout and
+/// always propagates immediately, unchanged from before.
 /// </summary>
 public sealed class ProviderFallbackChain<TProvider, TRequest, TResponse>
 {
+    /// <summary>
+    /// Generous enough for a real Gemini/OpenAI/NVIDIA chat completion
+    /// (including tool-call turns), but finite -- the one property this
+    /// class had none of at all before this fix. Every production caller
+    /// (AiProviderRouter, FinanceAssistantProviderRouter) uses this
+    /// default and shares it uniformly; it is not exposed as application
+    /// configuration, since it is a defensive upper bound on a single
+    /// call, not a tunable product setting. The constructor's optional
+    /// override exists solely so tests can prove the timeout behavior
+    /// itself deterministically and quickly, without waiting out a real
+    /// 30-second clock.
+    /// </summary>
+    private static readonly TimeSpan DefaultPerProviderCallTimeout =
+        TimeSpan.FromSeconds(30);
+
+    private readonly TimeSpan _perProviderCallTimeout;
+
     private readonly IReadOnlyList<(string Name, TProvider Provider)> _candidates;
     private readonly Func<TProvider, TRequest, CancellationToken, Task<TResponse>> _invoke;
     private readonly Func<TProvider, bool>? _isAvailable;
@@ -52,7 +86,8 @@ public sealed class ProviderFallbackChain<TProvider, TRequest, TResponse>
         Func<string, Exception, IReadOnlyList<string>, Exception> singleFailureExceptionFactory,
         Func<IReadOnlyList<(string Name, Exception Error)>, IReadOnlyList<string>, Exception> allFailedExceptionFactory,
         Func<TProvider, bool>? isAvailable = null,
-        Func<Exception>? noProviderConfiguredExceptionFactory = null)
+        Func<Exception>? noProviderConfiguredExceptionFactory = null,
+        TimeSpan? perProviderCallTimeout = null)
     {
         _candidates = candidates;
         _invoke = invoke;
@@ -60,6 +95,7 @@ public sealed class ProviderFallbackChain<TProvider, TRequest, TResponse>
         _allFailedExceptionFactory = allFailedExceptionFactory;
         _isAvailable = isAvailable;
         _noProviderConfiguredExceptionFactory = noProviderConfiguredExceptionFactory;
+        _perProviderCallTimeout = perProviderCallTimeout ?? DefaultPerProviderCallTimeout;
     }
 
     public async Task<TResponse> ExecuteAsync(
@@ -93,32 +129,71 @@ public sealed class ProviderFallbackChain<TProvider, TRequest, TResponse>
         {
             var (name, provider) = effective[i];
 
-            try
-            {
-                return await _invoke(provider, request, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
-            {
-                failures.Add((name, ex));
+            Exception failure;
 
-                var isLast = i == effective.Count - 1;
+            using (var timeoutCts =
+                CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                timeoutCts.CancelAfter(_perProviderCallTimeout);
 
-                if (!isLast)
+                try
                 {
-                    continue;
+                    return await _invoke(provider, request, timeoutCts.Token);
                 }
-
-                if (failures.Count == 1)
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
                 {
-                    throw _singleFailureExceptionFactory(name, ex, excluded);
+                    // The CALLER's own token fired (e.g. the HTTP request
+                    // was aborted) -- not a provider failure. Always
+                    // propagates immediately, exactly as before this fix.
+                    throw;
                 }
-
-                throw _allFailedExceptionFactory(failures, excluded);
+                catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+                {
+                    // Only this call's own bounded timeout fired -- the
+                    // caller's token is still live. Treated as an
+                    // ordinary provider failure -- never left pending,
+                    // never a special "hung" state -- so the chain can
+                    // fall through to the next candidate (or report a
+                    // normal bounded failure) instead of the request
+                    // hanging indefinitely.
+                    failure =
+                        new TimeoutException(
+                            $"Provider '{name}' did not respond within " +
+                            $"{_perProviderCallTimeout}.");
+                }
+                catch (OperationCanceledException)
+                {
+                    // Neither the caller's token nor our own timeout is
+                    // actually canceled -- the provider threw/observed
+                    // cancellation for its own reasons (e.g. a test
+                    // double, or an internal token unrelated to either of
+                    // ours). Preserves this class's original, pre-fix
+                    // contract exactly: always propagates immediately,
+                    // never counted as a failure, never triggers
+                    // fallback.
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    failure = ex;
+                }
             }
+
+            failures.Add((name, failure));
+
+            var isLast = i == effective.Count - 1;
+
+            if (!isLast)
+            {
+                continue;
+            }
+
+            if (failures.Count == 1)
+            {
+                throw _singleFailureExceptionFactory(name, failure, excluded);
+            }
+
+            throw _allFailedExceptionFactory(failures, excluded);
         }
 
         // Unreachable: the loop above always returns or throws.
